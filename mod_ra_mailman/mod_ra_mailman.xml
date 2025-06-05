@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<extension type="module" version="4.0" method="upgrade" client="site">
+    <name>MOD_RA_MAILMAN_NAME</name>
+    <creationDate>2024-09-10</creationDate>
+    <copyright>2024 Charlie Bigley</copyright>
+    <license>GNU General Public License version 2 or later; see LICENSE.txt</license>
+    <author>Charlie Bigley</author>
+    <authorEmail>webmaster@bigley.me.uk</authorEmail>
+    <authorUrl>http://</authorUrl>
+    <version>CVS: 1.0.0</version>
+    <description>MOD_RA_MAILMAN_DESCRIPTION</description>
+    <namespace path="src">Ramblers\Module\Ra_mailman</namespace>
+    
+    <files>
+        <filename module="mod_ra_mailman">mod_ra_mailman.php</filename>
+        <filename>index.html</filename>
+        <folder>src</folder>
+        <folder>tmpl</folder>
+    </files>
+    <media destination="mod_ra_mailman" folder="media">
+        <folder>css</folder>
+        <folder>js</folder>
+        <filename>joomla.asset.json</filename>
+    </media>
+    <languages folder="language">
+        
+			<language tag="en-GB">en-GB/mod_ra_mailman.ini</language>
+			<language tag="en-GB">en-GB/mod_ra_mailman.sys.ini</language>
+    </languages>
+    <config>
+        <fields name="params">
+            <fieldset 
+                name="content_type" 
+                label="MOD_RA_MAILMAN_CONTENT_TYPE_TAB_LBL"
+                description="MOD_RA_MAILMAN_CONTENT_TYPE_TAB_DESC">
+                <field
+                    name="content_type" type="list"
+                    label="MOD_RA_MAILMAN_CONTENT_TYPE_LBL"
+                    description="MOD_RA_MAILMAN_CONTENT_TYPE_DESC">
+                    <option value="blank">MOD_RA_MAILMAN_CUSTOM_CONTENT</option>
+                    <option value="list">MOD_RA_MAILMAN_LIST</option>
+                    <option value="item">MOD_RA_MAILMAN_ITEM</option>
+                </field>
+            </fieldset>
+            <fieldset 
+                name="blank_content" 
+                label="MOD_RA_MAILMAN_CUSTOM_CONTENT_TAB_LBL"
+                description="MOD_RA_MAILMAN_CUSTOM_CONTENT_TAB_DESC">
+                <field 
+                    name="html_content" type="editor" filter="safehtml"
+                    label="MOD_RA_MAILMAN_HTML_LBL"
+                    description="MOD_RA_MAILMAN_HTML_DESC" />
+            </fieldset>
+            <fieldset 
+                name="list_content" 
+                label="MOD_RA_MAILMAN_LIST_CONTENT_TAB_LBL"
+                description="MOD_RA_MAILMAN_LIST_CONTENT_TAB_DESC">
+                <field
+                    name="table" type="list"
+                    label="MOD_RA_MAILMAN_TABLE_LBL"
+                    description="MOD_RA_MAILMAN_TABLE_DESC">
+                    
+	<option value="#__ra_mail_shots">#__ra_mail_shots</option>
+                </field>
+                <field 
+                    name="field" type="groupedlist" default=""
+                    label="MOD_RA_MAILMAN_FIELD_LBL"
+                    description="MOD_RA_MAILMAN_FIELD_DESC">
+                    
+	<group label="#__ra_mail_shots">
+		<option value="#__ra_mail_shots:id">id</option>
+		<option value="#__ra_mail_shots:created_by">created_by</option>
+		<option value="#__ra_mail_shots:modified_by">modified_by</option>
+		<option value="#__ra_mail_shots:title">title</option>
+		<option value="#__ra_mail_shots:body">body</option>
+		<option value="#__ra_mail_shots:attachment">attachment</option>
+		<option value="#__ra_mail_shots:mail_list_name">mail_list_name</option>
+	</group>
+                </field>
+                <field 
+                    name="offset" type="text" default="0" filter="uint" class="input-small"
+                    label="MOD_RA_MAILMAN_OFFSET_LBL"
+                    description="MOD_RA_MAILMAN_OFFSET_DESC" />
+                <field 
+                    name="limit" type="text" default="10" filter="uint" class="input-small"
+                    label="MOD_RA_MAILMAN_LIMIT_LBL"
+                    description="MOD_RA_MAILMAN_LIMIT_DESC" />
+            </fieldset>
+            <fieldset 
+                name="item_content" 
+                label="MOD_RA_MAILMAN_ITEM_CONTENT_TAB"
+                description="MOD_RA_MAILMAN_ITEM_CONTENT_TAB_DESC">
+                <field
+                    name="item_table" type="list"
+                    label="MOD_RA_MAILMAN_TABLE_LBL"
+                    description="MOD_RA_MAILMAN_TABLE_DESC">
+                    
+	<option value="#__ra_mail_shots">#__ra_mail_shots</option>
+                </field>
+                <field 
+                    name="item_id" type="text" filter="uint" class="input-small"
+                    label="MOD_RA_MAILMAN_ITEM_ID_LBL"
+                    description="MOD_RA_MAILMAN_ITEM_ID_DESC"
+                />
+            </fieldset>
+        </fields>
+    </config>
+    <updateservers>
+        <server type="extension" priority="1" name="com_ra_mailman">https://www.component-creator.com/index.php?task=builder.preupdatecheckhook&amp;option=com_combuilder&amp;component=NzQ2NjgtMjEyNzk4</server>
+    </updateservers>
+</extension>

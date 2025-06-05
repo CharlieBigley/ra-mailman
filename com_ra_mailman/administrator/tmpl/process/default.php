@@ -1,0 +1,68 @@
+<?php
+
+/**
+ * @version    4.4.0
+ * @package    com_ra_mailman
+ * @author     Charlie Bigley <webmaster@bigley.me.uk>
+ * @copyright  2023 Charlie Bigley
+ * @license    GNU General Public License version 2 or later; see LICENSE.txt
+ * 10/10/24 CB created
+ * 04/05/25 CB cater for update of file name on upload
+ * 26/05/25 CB import report
+ */
+defined('_JEXEC') or die;
+
+use Joomla\CMS\Component\ComponentHelper;
+use Joomla\CMS\Factory;
+use Joomla\CMS\HTML\HTMLHelper;
+use Ramblers\Component\Ra_mailman\Site\Helpers\UserHelper;
+
+// Import CSS
+$wa = $this->document->getWebAssetManager();
+$wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
+
+$objUserHelper = new UserHelper;
+$objUserHelper->method_id = $this->method_id;
+$objUserHelper->list_id = $this->list_id;
+$objUserHelper->processing = $this->processing;
+$objUserHelper->filename = $this->working_file;
+$objUserHelper->report_id = $this->report_id;
+//        $objUserHelper->purgeTestData();   // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+$response = $objUserHelper->processFile();
+
+// Redirect as appropriate
+if ($response) {
+    if ($this->processing == '0') {
+        echo 'If you continue, updates will be applied to the database.<br>';
+        if ($this->method_id == '3') {
+            $count = $this->toolsHelper->getValue('SELECT COUNT(id) FROM #__users');
+            $message = 'Total number of existing Users=' . $count . '<br>';
+            $message .= 'Existing members not present on this file will be ';
+            $members_leave = ComponentHelper::getParams('com_ra_mailman')->get('members_leave');
+            if ($members_leave == 'B') {
+                $message .= '<b>Archived</b>, and all their subscriptions will be cancelled';
+            } else {
+
+                $message .= '<b>Purged</b>, as will all their subscriptions';
+            }
+            echo $message . '<br>';
+        }
+        $target = 'administrator/index.php?option=com_ra_mailman&view=dataload';
+        echo $this->toolsHelper->buildButton($target, 'Cancel', False, 'granite');
+        $target = 'administrator/index.php?option=com_ra_mailman&task=dataload.continue';
+        echo $this->toolsHelper->buildButton($target, 'Continue', False, 'red');
+    } else {
+        // Flush the data from the session..
+        Factory::getApplication()->setUserState('com_ra_mailman.edit.upload.data', null);
+
+        $target = 'administrator/index.php?option=com_ra_tools&view=dashboard';
+        echo $this->toolsHelper->backButton($target);
+    }
+} else {
+    $target = 'administrator/index.php?option=com_ra_mailman&view=dataload';
+    echo $this->toolsHelper->backButton($target);
+}
+
+
+

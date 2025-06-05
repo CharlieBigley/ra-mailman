@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form addfieldprefix="Ramblers\Component\Ra_mailman\Site\Field">
+  <fieldset>
+    <field name="id" type="text" readonly="true" class="readonly" default="0" description="JGLOBAL_FIELD_ID_DESC"/>
+    <field
+        name="title"
+        type="textfield"
+        label="Title"
+        description="Title for the mailshot"
+        required="true"
+        class="input-xxlarge"
+        default=""
+    />
+    <field
+         name="body"
+         type="editor"
+         label="Content"
+         description="Content of the email"
+         filter="raw"
+         required="true"
+         default=""
+         />
+    <field
+        name="mail_list_id"
+        type="hidden"
+        label="Mailing list ID"
+        description="id of the mailing list"
+        required="false"
+        readonly="true"
+        />    
+    <field 
+        name="attachment" 
+        type="file" 
+        label="Attachment"
+        description="Name of the data file on your computer"/>
+    <field
+        name="state"
+        type="list"
+        label="Status"
+        description="Active/Deleted"
+        class="inputbox"
+        size="1"
+        default="1"
+        >
+        <option value="1">Active</option>
+        <option value="0">Deleted</option>
+    </field>
+    <field name="checked_out" type="hidden" filter="unset"/>
+    <field name="checked_out_time" type="hidden" filter="unset"/>
+    <field name="version_note" type="text" label="JGLOBAL_FIELD_VERSION_NOTE_LABEL" description="JGLOBAL_FIELD_VERSION_NOTE_DESC" class="inputbox" size="45" labelclass="control-label"/>
+  </fieldset>
+</form>
