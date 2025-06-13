@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.4.1
+ * @version    4.4.5
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
