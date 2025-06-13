@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version     4.4.4
+ * @version     4.4.5
  * @package     com_ra_mailman
  *
  * @copyright   Copyright (C) 2005 - 2019 Open Source Matters, Inc. All rights reserved.
@@ -196,7 +196,7 @@ class SystemController extends FormController {
             PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;';
         $helper->checkTable('ra_import_reports', $details);
-        $helper->checkColumn('ra_events', 'max_bookings', 'A', 'INT NOT NULL DEFAULT "1" AFTER boolable; ');
+//        $helper->checkColumn('ra_events', 'max_bookings', 'A', 'INT NOT NULL DEFAULT "1" AFTER bookable; ');
         $target = 'administrator/index.php?option=com_ra_tools&view=dashboard';
         echo $toolsHelper->backButton($target);
     }
