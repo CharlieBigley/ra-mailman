@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.4.0
+ * @version    4.3.4
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -41,19 +41,6 @@ class DataloadController extends FormController {
     protected $view_item = 'dataload';
 // Ensure control returns to Dashboard, not dataloads
     protected $view_list = 'dashboard';
-    protected $db;
-    protected $app;
-    protected $query;
-    protected $toolsHelper;
-
-    public function __construct() {
-        parent::__construct();
-        $this->db = Factory::getDbo();
-        $this->toolsHelper = new ToolsHelper;
-        $this->app = Factory::getApplication();
-        $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
-        $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
-    }
 
     public function cancel($key = null, $urlVar = null) {
         // Flush the data from the session..
@@ -85,12 +72,7 @@ class DataloadController extends FormController {
 
         // Initialise variables.
         $model = $this->getModel('Dataload', 'Administrator');
-        if (is_null($model)) {
-            die('Model is null');
-        }
-        if ($model === False) {
-            die('Model is false');
-        }
+
         // Get the user data.
         $data = $this->input->get('jform', array(), 'array');
 
