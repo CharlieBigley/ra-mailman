@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.1.12
+ * @version    4.4.4
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -9,6 +9,7 @@
  * 08/04/24 CB search on email
  * 28/10/24 CB select requireReset
  * 31/10/24 CB allow filtering
+ * 10/06/25 CB don't show subs with invalid user
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -132,7 +133,7 @@ class SubscriptionsModel extends ListModel {
         $query->select("p.preferred_name");
         $query->from('`#__ra_mail_subscriptions` AS a');
         $query->innerJoin($this->_db->qn('#__ra_mail_methods') . ' AS `m` ON m.id = a.method_id');
-        $query->leftJoin($this->_db->qn('#__users') . ' AS `u` ON u.id = a.user_id');
+        $query->innerJoin($this->_db->qn('#__users') . ' AS `u` ON u.id = a.user_id');
         $query->leftJoin($this->_db->qn('#__ra_profiles') . ' AS `p` ON p.id = a.user_id');
         $query->leftJoin($this->_db->qn('#__ra_mail_lists') . ' AS `l` ON l.id = a.list_id');
         $query->leftJoin($this->_db->qn('#__ra_mail_access') . ' AS `ma` ON ma.id = a.record_type');
