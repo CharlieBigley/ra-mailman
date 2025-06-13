@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.2.1
+ * @version    4.4.5
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -17,6 +17,7 @@
  * 16/10/24 CB use lastMailshot to find details of outstanding mailshot(s)
  * 22/10/24 CB separate link for mailshot/attachment
  * 04/11/24 CB use $this->user, not getUser
+ * 13/06/25 CB show state, correct label of button when no previous mailshots
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -83,6 +84,9 @@ $objMailHelper = new Mailhelper;
                             </th>
                             <th class='left'>
                                 <?php echo HTMLHelper::_('searchtools.sort', 'Home', 'a.home_group_only', $listDirn, $listOrder); ?>
+                            </th>
+                            <th class='left'>
+                                <?php echo HTMLHelper::_('searchtools.sort', 'Pub', 'a.state', $listDirn, $listOrder); ?>
                             </th>
                             <?php
                             echo '<th class="left">';
@@ -167,6 +171,13 @@ $objMailHelper = new Mailhelper;
                                         echo 'No';
                                     }
                                     echo '</td>';
+                                    echo '<td>';
+                                    if ($item->state == 1) {
+                                        echo 'Y';
+                                    } else {
+                                        echo 'N';
+                                    }
+                                    echo '</td>';
 
                                     echo '<td>';
                                     echo $last_mailshot->date;
@@ -232,7 +243,9 @@ $objMailHelper = new Mailhelper;
                                     } else {
                                         if (($canEdit) OR ($isAuthor)) {
                                             $target_edit = 'administrator/index.php?option=com_ra_mailman&view=mailshot&layout=edit&list_id=' . $item->id;
-                                            if ((is_null($last_mailshot->date_sent)) AND (is_null($last_mailshot->processing_started))) {
+                                            if ((is_null($last_mailshot->date_sent))
+                                                    AND ($count > 0)
+                                                    AND (is_null($last_mailshot->processing_started))) {
                                                 // Set up the link to Edit
                                                 $target_edit .= '&id=' . $last_mailshot->id;
                                                 $label = 'Edit';
