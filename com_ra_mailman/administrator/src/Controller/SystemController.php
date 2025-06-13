@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version     4.4.0
+ * @version     4.4.4
  * @package     com_ra_mailman
  *
  * @copyright   Copyright (C) 2005 - 2019 Open Source Matters, Inc. All rights reserved.
@@ -171,7 +171,6 @@ class SystemController extends FormController {
         $details = '(
             `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
             `date_phase1` DATETIME NOT NULL ,
-            `date_phase2` DATETIME NULL ,
             `date_completed` DATETIME NULL ,
             `method_id` int(11) NOT NULL,
             `list_id` int(11) NOT NULL,
@@ -182,10 +181,10 @@ class SystemController extends FormController {
             `num_subs` INT  NOT NULL DEFAULT "0",
             `num_lapsed` INT  NOT NULL DEFAULT "0",
             `ip_address` VARCHAR(255)  NULL  DEFAULT "",
-            `error_report` TEXT  DEFAULT NULL,
-            `new_users` TEXT DEFAULT NULL,
-            `new_subs` TEXT DEFAULT NULL,
-            `lapsed_members` TEXT DEFAULT NULL,
+            `error_report` MEDIUMTEXT  DEFAULT NULL,
+            `new_users` MEDIUMTEXT DEFAULT NULL,
+            `new_subs` MEDIUMTEXT DEFAULT NULL,
+            `lapsed_members` MEDIUMTEXT DEFAULT NULL,
             `input_file` VARCHAR(255) NOT NULL,
             `created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             `created_by` INT NULL DEFAULT "0",
@@ -197,6 +196,7 @@ class SystemController extends FormController {
             PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;';
         $helper->checkTable('ra_import_reports', $details);
+        $helper->checkColumn('ra_events', 'max_bookings', 'A', 'INT NOT NULL DEFAULT "1" AFTER boolable; ');
         $target = 'administrator/index.php?option=com_ra_tools&view=dashboard';
         echo $toolsHelper->backButton($target);
     }
