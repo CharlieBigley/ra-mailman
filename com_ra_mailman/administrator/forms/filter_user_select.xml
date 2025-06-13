@@ -29,12 +29,12 @@
                default="a.id DESC"
         >
             <option value="">JGLOBAL_SORT_BY</option>
-            <option value="a.id ASC">Group Ascending</option>
-            <option value="a.id DESC">Group Descending</option>
-            <option value="a.state ASC">Name Ascending</option>
-            <option value="a.state DESC">Name Descending</option>
-            <option value="a.organiser ASC">Email Ascending</option>
-            <option value="a.organiser DESC">Email Descending</option>
+            <option value="a.home_group ASC">Group Ascending</option>
+            <option value="a.home_group DESC">Group Descending</option>
+            <option value="p.preferred_name ASC">Name Ascending</option>
+            <option value="p.preferred_name DESC">Name Descending</option>
+            <option value="u.email ASC">Email Ascending</option>
+            <option value="u.email DESC">Email Descending</option>
 
         </field>
 
