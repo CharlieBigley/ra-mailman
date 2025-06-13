@@ -3,7 +3,7 @@
 /**
  * Contains functions used in the back end and the front end
  *
- * @version    4.4.0
+ * @version    4.4.5
  * @package    com_ra_mailman
  * @author     charles
 
@@ -20,7 +20,7 @@
  * 05/04/25 CB use JPATH ROOT for attachments (otherwise does not work from Admin
  * 30/04/25 CB add logo to email header
  * 19/05/25 CB remove logo, check for duplicates when sending, don't append sender's email address
- * 31/05/25 CB show colours, warning if no subscribers
+ * 31/05/25 CB show colours, warning if no subscribers, correct restart, X on behalf of Y
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Helpers;
@@ -71,7 +71,7 @@ class Mailhelper {
                 . "p.preferred_name AS 'Owner', modifier.preferred_name as 'Modifier', creator.name as 'Creator' ";
         $sql .= 'FROM #__ra_mail_shots AS m ';
         $sql .= 'INNER JOIN `#__ra_mail_lists` AS l ON l.id = m.mail_list_id ';
-        $sql .= 'LEFT JOIN #__users AS owner ON owner.id = l.owner_id ';
+        $sql .= 'LEFT JOIN #__ra_profiles AS owner ON owner.id = l.owner_id ';
         $sql .= 'LEFT JOIN #__ra_profiles AS modifier ON modifier.id = m.modified_by ';
         $sql .= 'LEFT JOIN #__users AS creator ON creator.id = m.created_by ';
         $sql .= 'LEFT JOIN #__ra_profiles AS p ON owner.id = p.id ';
@@ -760,21 +760,16 @@ class Mailhelper {
                 }
                 $this->createRecipent($mailshot_id, $subscriber->user_id);
             }
+        }
 //        $this->message .= 'Testing ' . $count . ', user=' . $users . ', for mailshot ' . $mailshot_id . $message;
 
 
-            if ($error_count > 0) {
-                $this->message .= ' ' . $error_count . ' Errors';
-            }
-            if ($restart == true) {
-                $date_field = '';
-            } else {
-                $date_field = '';
-            }
-            if (!$this->updateDate($mailshot_id, 'date_sent')) {
-                $this->message .= ', Unable to update DateSent';
-                return false;
-            }
+        if ($error_count > 0) {
+            $this->message .= ' ' . $error_count . ' Errors';
+        }
+        if (!$this->updateDate($mailshot_id, 'date_sent')) {
+            $this->message .= ', Unable to update DateSent';
+            return false;
         }
         $this->message .= ' Mailshot ' . $this->email_title . ' sent to ' . $count . ' users ';
         return true;
