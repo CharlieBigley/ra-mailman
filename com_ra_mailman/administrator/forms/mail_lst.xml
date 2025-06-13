@@ -4,13 +4,7 @@
     addfieldprefix="Ramblers\Component\Ra_tools\Administrator\Field"
     addruleprefix="Ramblers\Component\Ra_tools\Administrator\Rule"
   > 
-    <field name="id" type="text" readonly="true" class="readonly" default="0" description="JGLOBAL_FIELD_ID_DESC"/>
-    <field name="state" default="1" type="list" label="JSTATUS" description="JFIELD_PUBLISHED_DESC" class="inputbox" size="1">
-      <option value="1">JPUBLISHED</option>
-      <option value="0">JUNPUBLISHED</option>
-      <option value="2">JARCHIVED</option>
-      <option value="-2">JTRASHED</option>
-    </field>
+    <field name="id" type="text" readonly="true" class="readonly" default="0" label ="ID" description="JGLOBAL_FIELD_ID_DESC"/>
     <field name="id" type="text" default="0" label="Internal ID"
         readonly="true"
         class="readonly"
