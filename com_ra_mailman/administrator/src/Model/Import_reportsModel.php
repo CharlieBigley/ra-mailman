@@ -47,6 +47,7 @@ class Import_reportsModel extends ListModel {
                 'u.name',
                 'p.preferred_name',
                 'm.name',
+                'a.id',
                 'a.num_errors',
                 'a.num_users',
                 'a.num_subs',
@@ -121,7 +122,7 @@ class Import_reportsModel extends ListModel {
         $query = $this->_db->getQuery(true);
 
         $query->select('a.id, a.state, a.ip_address, a.user_id, a.state');
-        $query->select('a.date_phase1,a.date_phase2');
+        $query->select('a.date_phase1,a.date_completed');
         $query->select("CASE WHEN a.state = 0 THEN 'Inactive' ELSE 'Active' END AS 'Status'");
         $query->select('a.method_id, a.input_file, a.created, a.modified');
         $query->select('a.num_errors,a.num_users,a.num_subs, a.num_lapsed');
