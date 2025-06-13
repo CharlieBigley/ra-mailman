@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.4.0
+ * @version    4.4.4
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -32,7 +32,7 @@ $objUserHelper->report_id = $this->report_id;
 $response = $objUserHelper->processFile();
 
 // Redirect as appropriate
-if ($response) {
+if ($response === true) {
     if ($this->processing == '0') {
         echo 'If you continue, updates will be applied to the database.<br>';
         if ($this->method_id == '3') {
