@@ -58,7 +58,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         if ($this->processing == '0') {
             $this->createReport();
         } else {
-            $this->updateReport();
+            $this->findReport();
         }
         parent::display($tpl);
     }
@@ -83,12 +83,9 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
 //        echo 'Created ' . $this->report_id . '<br>';
     }
 
-    public function updateReport() {
-        $db = Factory::getContainer()->get(DatabaseInterface::class);
-        $query = $db->getQuery(true);
-        $query->update('#__ra_import_reports')
-                ->set("date_phase2 = " . $db->quote($this->date))
-                ->where('id=' . $this->report_id);
+    public function findReport() {
+        $sql = 'SELECT MAX(id) FROM #__ra_import_reports';
+        $this->report_id = $this->toolsHelper->getValue($sql);
     }
 
 }
