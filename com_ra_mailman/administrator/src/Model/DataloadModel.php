@@ -21,6 +21,7 @@
  * 14/04/25 CB delete any existing copy of the upload file
  * 02/05/25 CN remove diagnostic
  * 04/05/25 CB cater for update of file name on upload
+ * 09/06/25 CB correct error message for empty file
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -41,7 +42,7 @@ use Ramblers\Component\Ra_mailman\Site\Helpers\UserHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
- * dataload model.
+ * Mail_lst model.
  *
  * @since  1.0.6
  */
@@ -63,25 +64,6 @@ class DataloadModel extends AdminModel {
      */
     public $typeAlias = 'com_ra_mailman.dataload';
     private $item = null;
-
-    /**
-     * Constructor.
-     *
-     * @param   array  $config  An optional associative array of configuration settings.
-     *
-     * @see        JController
-     * @since      1.6
-     */
-    public function __construct($config = array()) {
-        echo "About to Construct Model<br>";
-//        die('constructing model');
-        $response = parent::__construct($config);
-        if ($response === False) {
-            die('Unable to construct Model');
-        }
-        Factory::getApplication()->enqueueMessage('Constructed Model', 'message');
-        echo "Constructed Model<br>";
-    }
 
     /**
      * Method to auto-populate the model state.
@@ -153,7 +135,6 @@ class DataloadModel extends AdminModel {
         );
 
         if (empty($form)) {
-            echo 'form is empty<br>';
             return false;
         }
 // if a file has been selected, show its name
@@ -164,9 +145,6 @@ class DataloadModel extends AdminModel {
             $form->setFieldAttribute('csv_file', 'hidden', "true");
             $form->setFieldAttribute('file', 'type', "textfield");
         }
-        var_dump($data);
-        echo '<br>';
-        //       die('Loaded form');
         return $form;
     }
 
@@ -285,7 +263,7 @@ class DataloadModel extends AdminModel {
         }
         $singleFile = $files['csv_file'];
         if ($singleFile['size'] == 0) {
-            $app->enqueueMessage('Please select a file', 'error');
+            $app->enqueueMessage('Selected file is empty', 'error');
             return false;
         }
 
