@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.4.1
+ * @version    4.4.4
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -45,8 +45,10 @@ $objHelper = new ToolsHelper;
                     <thead>
                         <tr>
                             <?php
+                            echo '<th class="left">' . HTMLHelper::_('searchtools.sort', 'id', 'a.id', $listDirn, $listOrder) . '</th>';
                             echo '<th class="left">' . HTMLHelper::_('searchtools.sort', 'Date', 'a.date_phase1', $listDirn, $listOrder) . '</th>';
                             echo '<th class="left">Time</th>';
+                            echo '<th class="left">Complete</th>';
                             echo '<th class="left">' . HTMLHelper::_('searchtools.sort', 'Group', 'l.group_code', $listDirn, $listOrder) . '</th>';
                             echo '<th class="left">' . HTMLHelper::_('searchtools.sort', 'List', 'l.name', $listDirn, $listOrder) . '</th>';
                             echo '<th class="left">' . HTMLHelper::_('searchtools.sort', 'Method', 'm.name', $listDirn, $listOrder) . '</th>';
@@ -74,9 +76,17 @@ $objHelper = new ToolsHelper;
                             <tr class="row<?php echo $i % 2; ?>" data-transition>
 
                             <?php
+                            echo '<td>';
+                            $link = $target . 'showSummary&id=' . $item->id;
+                            echo $objHelper->buildlink($link, $item->id);
+                            echo '</td>';
                             echo '<td>' . HTMLHelper::_('date', $item->date_phase1, 'd/m/y') . '</td>';
-                            echo '<td>' . HTMLHelper::_('date', $item->date_phase1, 'H:i') . '</td>';
-//                                echo $objHelper->imageButton('X', $target);
+                            echo '<td>' . HTMLHelper::_('date', $item->date_completed, 'H:i') . '</td>';
+                            echo '<td>';
+                            if (!is_null($item->date_completed)) {
+                                echo HTMLHelper::_('date', $item->date_completed, 'H:i');
+                            }
+                            echo '</td>';
                             echo '<td>' . $item->group . '</td>';
                             echo '<td>' . $item->list . '</td>';
                             echo '<td>' . $item->Method . '</td>';
