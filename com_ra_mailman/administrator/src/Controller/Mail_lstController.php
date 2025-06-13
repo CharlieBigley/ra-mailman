@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.3.6
+ * @version    4.4.5
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -15,6 +15,7 @@
  * 24/03/25 CB use Route, not JRoute
  * 02/05/25 CB showSubscribers - show username via link from subscription record
  * 21/05/25 CB show Status by colour in showSubscribers
+ * 10/06/25 CB export - sequence by email
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Controller;
@@ -156,7 +157,7 @@ class Mail_lstController extends FormController {
             $sql .= 'WHERE u.block=0 ';
             $sql .= 'AND s.state=1 ';
             $sql .= 'AND l.id=' . $id;
-            $sql .= ' ORDER BY p.home_group, u.name';
+            $sql .= ' ORDER BY u.email';
 //        echo $sql;
             $count = 0;
             $rows = $this->objHelper->getRows($sql);
