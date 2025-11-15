@@ -5,17 +5,6 @@
                description="Search term"
                label="COM_USERS_FILTER_SEARCH_DESC"
                class="js-stools-search-string" />
-
-        <field name="status"
-               type="list"
-               label="Status"
-               onchange="this.form.submit();"
-        >
-                <option value="">- Select status -</option>
-                <option value="1">Not yet sent</option>
-                <option value="2">Partially sent</option>
-                <option value="3">Sent</option>
-        </field>
         <field
             name="list_id"
             label="Mailing list"
@@ -39,15 +28,18 @@
         >
             <option value="">JGLOBAL_SORT_BY</option>
 
-            <option value="a.date_sent ASC">Date sent Ascending</option>
-            <option value="a.date_sent DESC">Date sent Descending</option>
-            <option value="a.title ASC">Title Ascending</option>
-            <option value="a.title DESC">Title Descending</option>
+            <option value="m.date_sent ASC">Date sent Ascending</option>
+            <option value="m.date_sent DESC">Date sent Descending</option>
             <option value="mail_list.name ASC">Mail list Ascending</option>
             <option value="mail_list.name DESC">Mail list Descending</option>
-            <option value="a.modified ASC">Last updated Ascending</option>
-            <option value="a.modified DESC">Last updated Descending</option>
-
+            <option value="m.title ASC">Mailshot Ascending</option>
+            <option value="m.title DESC">Mailshot Descending</option>
+            <option value="p.preferred_name ASC">User Ascending</option>
+            <option value="p.preferred_name DESC">User Descending</option>
+            <option value="a.email ASC">Email Ascending</option>
+            <option value="a.email DESC">Email Descending</option>            
+            <option value="a.id ASC">ID Ascending</option>
+            <option value="a.id DESC">ID Descending</option>
         </field>
 
        <field name="limit"
@@ -62,3 +54,4 @@
     </fields>
 
 </form>
+

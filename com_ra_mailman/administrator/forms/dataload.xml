@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <form>
-	<fieldset addfieldpath="/components/com_ra_mailman/models/fields">
+    <fieldset addfieldpath="/components/com_ra_mailman/models/fields">
             <field
                 name="csv_file"
                 type="file"
@@ -9,7 +9,7 @@
                 size="40"
                 class="inputbox"
                 default=""
-            />       
+            />
             <field
                 name="data_type"
                 type="radio"
@@ -23,7 +23,21 @@
                 <option value="3">Members list from corporate feed</option>
                 <option value="4">Mailchip export</option>
                 <option value="5">Simple CSV file (group,name,email)</option>
-            </field> 
+            </field>
+            <field
+                name="validation_type"
+                type="radio"
+                label="Validation/Process"
+                description="Type of data to load"
+                class="inputbox"
+                showon="data_type:3"
+                size="1"
+                required="true"
+                default="2"
+                >
+                <option value="1">Check format of first four records</option>
+                <option value="2">Process the complete file</option>
+            </field>
             <field
                 name="file"
                 type="hidden"
@@ -53,4 +67,3 @@
                />
 </fieldset>
 </form>
-

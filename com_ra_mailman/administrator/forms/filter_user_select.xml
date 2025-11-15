@@ -6,15 +6,6 @@
                label="COM_USERS_FILTER_SEARCH_DESC"
                class="js-stools-search-string" />
 
-        <field name="state"
-               type="status"
-               label="Status"
-               description="Active or Inactive"
-               onchange="this.form.submit();"
-        >
-            <option value="">JOPTION_SELECT_PUBLISHED</option>
-        </field>
-
         
 
     </fields>
