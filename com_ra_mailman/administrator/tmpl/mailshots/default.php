@@ -72,11 +72,11 @@ $self = 'index.php?option=com_ra_mailman&view=mailshots&list_id=' . $this->list_
                     if (is_null($item->date_sent)) {
                         echo '(not sent)';
                     } else {
-                        echo HTMLHelper::_('date', $item->date_sent, 'h:i d/m/y');
+                        echo HTMLHelper::_('date', $item->date_sent, 'H:i d/m/y');
                     }
                     if (!is_null($item->processing_started)) {
-                        if (HTMLHelper::_('date', $item->date_sent, 'h:i d/m/y') != HTMLHelper::_('date', $item->processing_started, 'h:i d/m/y')) {
-                            echo '<br>' . HTMLHelper::_('date', $item->processing_started, 'h:i d/m/y');
+                        if (HTMLHelper::_('date', $item->date_sent, 'H:i d/m/y') != HTMLHelper::_('date', $item->processing_started, 'H:i d/m/y')) {
+                            echo '<br>' . HTMLHelper::_('date', $item->processing_started, 'H:i d/m/y');
                         }
                     }
                     echo '</td>' . PHP_EOL;
