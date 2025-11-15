@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.2.0
+ * @version    4.5.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -18,6 +18,7 @@
  * 14/11/24 Cb show preferred_name, pretty dates, don't show UpdatedBy
  * 12/02/25 CB replace getIdentity with Factory::getApplication()->getSession()->get('user')
  * 17/02/25 CB don't check helper:canDo before unsubscribing
+ * 25/08/25 CB redirect to main menu
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Controller;
@@ -151,15 +152,17 @@ class Mail_lstController extends BaseController {
         /*
          * This will be invoked by the user clicking on a link from an email
          * they have been sent by a batch job containing a token
+         *
          */
         $objApp = Factory::getApplication();
         $token = $objApp->input->getCmd('token', '');
 //        echo "Controller: token is $token<br>";
 // For diagnostics, set final parameter to True
         if ($this->decode($token, $subscription_id, $mode, false) === false) {
-            echo "Sorry, this seems be be in invalid token" . '<br>';
-            $this->showButtons();
-            die;
+            $message = "Sorry, this seems be be in invalid token";
+            Factory::getApplication()->enqueueMessage($message, 'error');
+            $this->setRedirect('index.php');
+            return;
         }
         $objSubscription = new SubscriptionHelper;
 
@@ -174,36 +177,32 @@ class Mail_lstController extends BaseController {
                 . 'WHERE s.id=' . $subscription_id;
         $item = $this->objHelper->getItem($sql);
         if (is_null($item)) {
-            echo "Controller: token is $token<br>";
-            echo "Sorry, this seems be be in invalid reference" . '<br>';
-            $this->showButtons();
-            die;
+//            echo "Controller: token is $token<br>";
+            $message = "Sorry, this seems be be in invalid reference";
+            Factory::getApplication()->enqueueMessage($message, 'error');
+            $this->setRedirect('index.php');
+            return;
         }
         $list = $item->group_code . ' ' . $item->name;
-
         if ($mode == 0) {
             if ($item->state == 0) {
                 $message = 'You are already unsubscribed from ' . $list;
                 if (JDEBUG) {
                     $message .= ', mode=' . $mode . ', id=' . $subscription_id;
                 }
-                echo $message . '<br>';
-                $this->showButtons();
-                die;
+                Factory::getApplication()->enqueueMessage($message, 'info');
+//                echo $message . '<br>';
             }
             $result = $this->objMailHelper->unsubscribe($item->list_id, $item->user_id, 6);
-            $action = 'unsubscribed from';
+            $action = 'unsubscribed from ' . $list;
         } elseif ($mode == 1) {
             if ($item->state == 1) {
-
-                $message = 'You are already subscribed to ' . $list;
-//               if (JDEBUG) {
-                $message .= ', mode=' . $mode . ', id=' . $subscription_id;
-//                }
+                $message = 'You are already subscribed to ' . $list . ' as ' . $item->Method;
+                if (JDEBUG) {
+                    $message .= ', mode=' . $mode . ', id=' . $subscription_id;
+                }
                 echo $message . '<br>';
-                echo 'You are already subscribed to ' . $list . ' as ' . $item->Method . '<br>';
-                $this->showButtons();
-                die;
+                Factory::getApplication()->enqueueMessage($message, 'error');
             }
             $result = $this->objMailHelper->subscribe($item->list_id, $item->user_id, 1, 6);
             $action = 'subscribed to';
@@ -222,13 +221,16 @@ class Mail_lstController extends BaseController {
             $objSubscription->bumpAll($item->user_id);
             $action = 'renewed all your subscription for another 12 months';
         } else {
-            echo "Sorry, this seems be be in invalid mode" . '<br>';
-            $this->showButtons();
-            die;
+            $message = "Sorry, $mode seems to be in invalid mode" . '<br>';
+            Factory::getApplication()->enqueueMessage($message, 'info');
+            $this->setRedirect('index.php');
+            return;
         }
-        echo $item->preferred_name . ': You have successfully ' . $action . '<br>';
+        $message = $item->preferred_name . ': You have successfully ' . $action . '<br>';
+        Factory::getApplication()->enqueueMessage($message, 'info');
 
-        $this->showButtons();
+//        $this->showButtons();
+        $this->setRedirect('index.php');
     }
 
     public function renew() {
@@ -341,7 +343,6 @@ class Mail_lstController extends BaseController {
 
     public function showSubscribers() {
         // shows all Users for the given mail-list
-        //
 
         $app = Factory::getApplication();
 

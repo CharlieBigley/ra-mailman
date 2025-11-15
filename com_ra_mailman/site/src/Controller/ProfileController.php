@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.2.0
+ * @version    4.5.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -12,6 +12,7 @@
  * 04/11/24 CB show preferred name, flush form data if cancelling
  * 12/02/25 CB use table from Administrator, not Site
  *             replace getIdentity with getSession()->get('user')
+ * 24/08/25 CB change welcome message
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Controller;
@@ -27,6 +28,7 @@ use Joomla\CMS\MVC\Controller\FormController;
 use Joomla\CMS\Object\CMSObject;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Uri\Uri;
+//use Ramblers\Component\Ra_mailmans\Site\Model\ProfileModel;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsTable;
 use Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
@@ -38,6 +40,15 @@ use Ramblers\Component\Ra_mailman\Site\Helpers\UserHelper;
  * @since  4.1.0
  */
 class ProfileController extends FormController {
+
+    private $toolsHelper;
+
+    public function __construct() {
+        parent::__construct();
+        $this->toolsHelper = new ToolsHelper;
+        $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
+        $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
+    }
 
     /**
      * Method to abort creation of profile
@@ -104,7 +115,11 @@ class ProfileController extends FormController {
 
         // Initialise variables.
         $model = $this->getModel('Profile', 'Site');
-
+        if (is_null($model)) {
+            $this->app->enqueueMessage('Unable to get Model', 'error');
+//            die('Unable to get Model');
+            return false;
+        }
         // Get the user data.
         $data = $this->input->get('jform', array(), 'array');
 
@@ -205,7 +220,6 @@ class ProfileController extends FormController {
         $id = Factory::getApplication()->input->getInt('id', '0');
         $menu_id = Factory::getApplication()->input->getInt('menu_id', '0');
         echo '<h2>Details for Subscription</h2>';
-        $objHelper = new ToolsHelper;
         $objMailHelper = new Mailhelper;
         $objMailHelper->showSubscriptionDetails($id);
         // duff http://localhost//index.php?option=com_ra_mailman&view=profile&layout=subscriptions&Itemid=1070
@@ -213,7 +227,7 @@ class ProfileController extends FormController {
         //
 //        $back = '/index.php?option=com_ra_mailman&view=profile&layout=subscriptions&Itemid=' . $menu_id;
         $back = 'index.php?option=com_ra_mailman&view=profile&layout=subscriptions&Itemid=' . $menu_id;
-        echo $objHelper->backButton($back);
+        echo $this->toolsHelper->backButton($back);
     }
 
     public function showWelcome() {
@@ -222,27 +236,25 @@ class ProfileController extends FormController {
         $user_id = Factory::getApplication()->input->getInt('user_id', '0');
         $params = ComponentHelper::getParams('com_ra_mailman');
         $welcome_message = $params->get('welcome_message');
-        $objHelper = new ToolsHelper;
         $sql = 'SELECT u.email, u.username, u.registerDate, ';
         $sql .= 'p.preferred_name, p.home_group ';
         $sql .= 'FROM #__users AS u ';
         $sql .= 'LEFT JOIN #__ra_profiles as p ON p.id = u.id ';
         $sql .= 'WHERE u.id=' . $user_id;
-        $item = $objHelper->getItem($sql);
+        $item = $this->toolsHelper->getItem($sql);
 
         echo '<h2>Welcome to MailMan ' . $item->preferred_name . '</h2>';
         echo '<p>' . $params->get('welcome_message') . '</p>';
 
-        echo '<p>An account has been created for you, please ';
-
-        echo $objHelper->buildLink(uri::base() . 'index.php?option=com_users&view=login', "Login", False);
-        echo 'using your email address as "User name" and request a password reset by clicking on "Forgotten your password".<p>';
+        echo '<p>Please authenticate yourself by requesting a Password reset ';
+        echo $this->toolsHelper->standardButton('Go', 'index.php?option=com_users&view=reset&Itemid=');
+        echo '<p>';
 
         $sql = 'SELECT l.group_code, l.name, g.name AS group_name ';
         $sql .= 'FROM `#__ra_mail_lists` AS l ';
         $sql .= 'LEFT JOIN #__ra_groups as g ON g.code = l.group_code ';
         $sql .= 'WHERE group_primary="' . $item->home_group . '" ';
-        $list = $objHelper->getItem($sql);
+        $list = $this->toolsHelper->getItem($sql);
 
         if ($list->name > '') {
             echo 'Your local Ramblers group is ' . $list->group_code . ' <b>' . $list->group_name . '</b>. ';
@@ -251,7 +263,7 @@ class ProfileController extends FormController {
         }
         // Could show button fopr password reset
         // $target = 'index.php?option=com_users&view=reset';
-        echo $objHelper->backButton('index.php');
+        echo $this->toolsHelper->backButton('index.php');
     }
 
     public function submit($key = NULL, $urlVar = NULL) {
@@ -259,14 +271,13 @@ class ProfileController extends FormController {
     }
 
     public function test() {
-        $toolsHelper = new ToolsHelper;
-        if (!$toolsHelper->isSuperuser()) {
+        if (!$this->toolsHelper->isSuperuser()) {
             echo 'Logon first<br>';
             return;
         }
-        $objHelper = new UserHelper;
+        $userHelper = new UserHelper;
         echo __FILE__ . '<br>';
-        $objHelper->test();
+        $userHelper->test();
     }
 
 }

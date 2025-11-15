@@ -1,15 +1,10 @@
 <?php
 
 /**
- * @version    4.4.0
+ * @version    4.5.7
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
- * 08/08/23 CB create afresh from Mailshotform controller
- * 13/11/23 CB define $objHelper
- * 14/11/23 CB store and pass menu_id
- * 21/11/23 CB use ToolsTable
- * 22/12/23 CB formatting of dates when displaying mailshot
  * 02/01/24 CB correct formatting of dates
  * 27/05/24 CB only show email address if superuser
  * 27/05/24 CB check user is logged in when showing recipients
@@ -20,12 +15,15 @@
  * 04/11/24 CB use getIdentity not getUser
  * 12/02/25 CB replace getIdentity with Factory::getApplication()->getSession()->get('user')
  * 01/06/25 CB show final_message, not body
+ * 14/08/25 CB new send
+ * 20/10/25 CB correct updateOutstanding
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Controller;
 
 \defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Language\Text;
@@ -44,14 +42,17 @@ class MailshotController extends FormController {
 
     public function send() {
         $objApp = Factory::getApplication();
-        $mailshot_id = (int) $objApp->input->getCmd('mailshot_id', '');
-
+        $mailshot_id = $objApp->input->getInt('mailshot_id', '');
+        $total = $objApp->input->getInt('total', '');
         $user_id = Factory::getApplication()->getSession()->get('user')->id;
         if ($user_id == 0) {
-            Factory::getApplication()->enqueueMessage('You must log in to access this function', 'error');
+            Factory::getApplication()->enqueueMessage('You must be logged in to access this function', 'error');
         } else {
-            $objMailHelper = new Mailhelper;
-            $objMailHelper->send($mailshot_id);
+            $mailHelper = new Mailhelper;
+            $params = ComponentHelper::getParams('com_ra_mailman');
+            $max_emails = $params->get('max_emails', 120);
+            $max_online_send = $params->get('max_online_send', 100);
+            $mailHelper->send($mailshot_id, $total);
             Factory::getApplication()->enqueueMessage($objMailHelper->message, 'notice');
         }
 
@@ -85,7 +86,7 @@ class MailshotController extends FormController {
         echo "<h3>List: " . $item->list . "</h3>";
         echo "<h3>Sent: " . $item->sent_time . " " . HTMLHelper::_('date', $item->date_sent, 'D d/m/y') . "</h3>";
         echo "<h2>" . $item->title . "</h2>";
-//        echo HTMLHelper::_('date', $item->date_sent, 'h:i D d/m/y');
+//        echo HTMLHelper::_('date', $item->date_sent, 'H:i D d/m/y');
         // Find any more Mailshots
 
         $sql = 'SELECT id FROM #__ra_mail_shots WHERE mail_list_id=' . $item->mail_list_id;
@@ -109,9 +110,9 @@ class MailshotController extends FormController {
             }
             //echo  . $objHelper->buildLink(Juri::Base() . 'images/com_ra_mailman/' . $item->attachment, $item->attachment, true);
         }
-        echo "<p>Created by " . $item->creator . ' at ' . HTMLHelper::_('date', $item->created, 'h:i D d/m/y');
-        if (($item->modified_by > 0) AND (HTMLHelper::_('date', $item->created, 'h:i D d/m/y') != HTMLHelper::_('date', $item->modified, 'h:i D d/m/y'))) {
-            echo ', Updated by ' . $item->updater . ' at ' . HTMLHelper::_('date', $item->modified, 'h:i D d/m/y');
+        echo "<p>Created by " . $item->creator . ' at ' . HTMLHelper::_('date', $item->created, 'H:i D d/m/y');
+        if (($item->modified_by > 0) AND (HTMLHelper::_('date', $item->created, 'H:i D d/m/y') != HTMLHelper::_('date', $item->modified, 'H:i D d/m/y'))) {
+            echo ', Updated by ' . $item->updater . ' at ' . HTMLHelper::_('date', $item->modified, 'H:i D d/m/y');
         }
         echo "</p>";
         echo "<p>";
