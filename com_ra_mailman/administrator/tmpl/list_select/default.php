@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.4.0
+ * @version    4.5.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -8,6 +8,7 @@
  * 22/08/24 CB correct value of $self
  * 12/02/25 CB user $this->user from view
  * 28/05/25 CB correct for search on owner name
+ * 03/09/25 CB Breadcrumbs
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -33,8 +34,10 @@ $listDirn = $this->state->get('list.direction');
 $objMailHelper = new Mailhelper;
 $self = 'index.php?option=com_ra_mailman&view=list_select';
 $self .= '&user_id=' . $this->user_id;
-//echo '<h2>';
-//echo 'Select subscriptions for ' . $this->user_name . '</h2>';
+$breadcrumbs = $this->objHelper->buildLink('administrator/index.php', 'Home Dashboard');
+$breadcrumbs .= '>' . $this->objHelper->buildLink('administrator/index.php?option=com_ra_tools&view=dashboard', 'RA Dashboard');
+$breadcrumbs .= '>' . $this->objHelper->buildLink('administrator/index.php?option==com_ra_mailman&view=profiles', 'List users');
+echo $breadcrumbs;
 ?>
 
 <form action="<?php echo Route::_($self); ?>" method="post"
