@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.4.5
+ * @version    4.5.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -18,6 +18,9 @@
  * 22/10/24 CB separate link for mailshot/attachment
  * 04/11/24 CB use $this->user, not getUser
  * 13/06/25 CB show state, correct label of button when no previous mailshots
+ * 08/08/25 CB show emails_outstanding on Resend
+ * 11/08/25 CB new mechanism for send
+ * 25/08/25 unpublished list in red
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -29,8 +32,6 @@ use \Joomla\CMS\Router\Route;
 use \Joomla\CMS\Layout\LayoutHelper;
 use \Joomla\CMS\Language\Text;
 use Joomla\CMS\Session\Session;
-use Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
-use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 HTMLHelper::_('bootstrap.tooltip');
 HTMLHelper::_('behavior.multiselect');
@@ -46,8 +47,6 @@ $listDirn = $this->state->get('list.direction');
 $canUpdate = $this->canDo->get('core.edit');
 $canCreate = $this->user->authorise('core.create', 'com_ra_mailman');
 $canEdit = $this->user->authorise('core.edit', 'com_ra_mailman');
-$objHelper = new ToolsHelper;
-$objMailHelper = new Mailhelper;
 ?>
 
 <form action="<?php echo Route::_('index.php?option=com_ra_mailman&view=mail_lsts'); ?>" method="post"
@@ -93,6 +92,7 @@ $objMailHelper = new Mailhelper;
                             echo 'Last sent';
                             echo '</th>';
 
+                            echo '<th>Outstanding</th>';
                             echo '<th></th>';
 
                             echo '<th class="left">';
@@ -127,16 +127,26 @@ $objMailHelper = new Mailhelper;
                         foreach ($this->items as $i => $item) :
                             $canCheckin = $this->user->authorise('core.manage', 'com_ra_mailman');
                             $canChange = $this->user->authorise('core.edit.state', 'com_ra_mailman');
+                            if ($item->emails_outstanding > 0) {
+                                $message = $item->group_code . '/' . $item->name . ': ' . $this->mailshot_send_message;
+                                Factory::getApplication()->enqueueMessage($message, 'notice');
+                            }
                             // Find details of the mailshots sent
-                            $last_mailshot = $objMailHelper->lastMailshot($item->id);
+                            $last_mailshot = $this->mailHelper->lastMailshot($item->id); //
 //                            var_dump($last_mailshot);
+//                            echo '<br>';
                             // see if the current user is an Author of this list
-                            $isAuthor = $objMailHelper->isAuthor($item->id);
+                            $isAuthor = $this->mailHelper->isAuthor($item->id);
 
                             // Count number of Authors
-                            $count_authors = $objMailHelper->countSubscribers($item->id, 'Y');
+                            $count_authors = $this->mailHelper->countSubscribers($item->id, 'Y');
                             // Count number of subscribers
-                            $count_subscribers = $objMailHelper->countSubscribers($item->id);
+                            $count_subscribers = $this->mailHelper->countSubscribers($item->id);
+                            if ($item->state == 1) {
+                                $name = $this->escape($item->name);
+                            } else {
+                                $name = '<div style="color:red">' . $this->escape($item->name) . '</div>';
+                            }
                             ?>
                             <tr class="row<?php echo $i % 2; ?>" data-draggable-group='1' data-transition>
                                 <td class="text-center">
@@ -152,10 +162,10 @@ $objMailHelper = new Mailhelper;
                                     <?php endif; ?>
                                     <?php if ($canEdit) : ?>
                                         <a href="<?php echo Route::_('index.php?option=com_ra_mailman&task=mail_lst.edit&id=' . (int) $item->id); ?>">
-                                            <?php echo $this->escape($item->name); ?>
+                                            <?php echo $name; ?>
                                         </a>
                                     <?php else : ?>
-                                        <?php echo $this->escape($item->name); ?>
+                                        <?php echo $name; ?>
                                     <?php
                                     endif;
                                     if ($item->group_primary != '') {
@@ -183,22 +193,15 @@ $objMailHelper = new Mailhelper;
                                     echo $last_mailshot->date;
                                     echo '</td>';
 
+                                    echo '<td>';
+                                    if ($item->emails_outstanding > 0) {
+                                        echo $item->emails_outstanding;
+                                    }
+                                    echo '</td>';
+
                                     echo '<td>'; // . $item->owner_id;
-                                    if (($last_mailshot->id > 0) AND is_null($last_mailshot->date_sent)) {
-                                        if (($canEdit) OR ($isAuthor)) {
-                                            if ($last_mailshot->attachment != '') {
-                                                $target = 'images/com_ra_mailman/' . $last_mailshot->attachment;
-                                                $label = '<span class="icon-paperclip"></span>';
-                                                echo $objHelper->buildLink($target, $label, True);
-                                            }
-                                            $target = 'administrator/index.php?option=com_ra_mailman&task=mailshot.send&mailshot_id=' . $last_mailshot->id . '&menu_id=' . $this->menu_id;
-                                            if (is_null($last_mailshot->processing_started)) {
-                                                $label = 'Send';
-                                            } else {
-                                                $label = 'Resend';
-                                            }
-                                            echo $objHelper->buildButton($target, $label, False, 'red');
-                                        }
+                                    if ($item->emails_outstanding == 0) {
+                                        echo $this->sendButton($last_mailshot, $count_subscribers, $canEdit, $isAuthor);
                                     }
                                     echo '</td>';
 
@@ -206,38 +209,40 @@ $objMailHelper = new Mailhelper;
                                     $target_info = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.showSubscribers&list_id=' . $item->id;
                                     if ($count_authors > 0) {
                                         echo $count_authors;
-                                        echo $objHelper->imageButton('I', $target_info . '&author=Y');
+                                        echo $this->toolsHelper->imageButton('I', $target_info . '&author=Y');
                                     }
                                     if (($item->state == 1) AND ($canEdit)) {
                                         $target = 'administrator/index.php?option=com_ra_mailman&view=user_select&record_type=2&list_id=' . $item->id;
-//                        echo $objHelper->buildLink($target, 'Select', False, "btn btn-small button-new");
+//                        echo $this->toolsHelper->buildLink($target, 'Select', False, "btn btn-small button-new");
                                         //             echo '<span class="icon-pencil-2"></span>';
-                                        echo $objHelper->buildLink($target, 'edit');
+                                        echo $this->toolsHelper->buildLink($target, 'edit');
                                     }
                                     echo '</td>';
 
                                     echo '<td>';
                                     if ($count_subscribers > 0) {
                                         echo $count_subscribers;
-                                        echo $objHelper->imageButton('I', $target_info);
+                                        echo $this->toolsHelper->imageButton('I', $target_info);
                                     }
                                     if (($item->state == 1) AND ($canEdit)) {
                                         $target = '/administrator/index.php?option=com_ra_mailman&view=user_select&record_type=1&list_id=' . $item->id;
 //                                    echo '<a href="' . $target . '"><span class="icon-pencil-2"></span></a>';
-                                        //            echo $objHelper->buildIconlink($target, 'icon-pencil-2');
-                                        echo $objHelper->buildLink($target, 'edit');
+                                        //            echo $this->toolsHelper->buildIconlink($target, 'icon-pencil-2');
+                                        echo $this->toolsHelper->buildLink($target, 'edit');
                                     }
                                     echo '</td>';
                                     // Mailshots
                                     echo '<td>';
-                                    $count = $objMailHelper->countMailshots($item->id);
+                                    $count = $this->mailHelper->countMailshots($item->id);
                                     $target_info = 'administrator/index.php?option=com_ra_mailman&view=mailshots&callback=mail_lsts&list_id=' . $item->id;
                                     if ($count > 0) {
                                         // show a link to browse the mailshots
-                                        echo $objHelper->buildLink($target_info, $count, False);
+                                        echo $this->toolsHelper->buildLink($target_info, $count, False);
                                     }
-
-                                    if (($item->state == 0) OR (is_null($last_mailshot->date_sent)) AND (!is_null($last_mailshot->processing_started))) {
+                                    if ($item->emails_outstanding > 0) {
+                                        // Can't edit
+                                    } elseif (($item->state == 0) OR (is_null($last_mailshot->date_sent))
+                                            AND (!is_null($last_mailshot->processing_started))) {
                                         // Mailing list is inactive
                                         // or the mailshot is only partly send
                                     } else {
@@ -249,15 +254,15 @@ $objMailHelper = new Mailhelper;
                                                 // Set up the link to Edit
                                                 $target_edit .= '&id=' . $last_mailshot->id;
                                                 $label = 'Edit';
-                                                $colour = 'darkgreen';
+                                                $colour = 'sunrise';
                                             } else {
                                                 // if (($count == 0) or ($last_mailshot->date_sent > '')) {
                                                 $target_edit .= '&id=0';
                                                 $label = 'New';
-                                                $colour = 'lightgreen';
+                                                $colour = 'sunset';
                                                 //  }
                                             }
-                                            echo $objHelper->buildButton($target_edit, $label, False, $colour);
+                                            echo $this->toolsHelper->buildButton($target_edit, $label, False, $colour);
                                         }
                                     }
 
@@ -267,7 +272,7 @@ $objMailHelper = new Mailhelper;
                                     if ($canEdit) {
                                         echo '<td>';
                                         $target_audit = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.showAuditAll&list_id=' . $item->id;
-                                        echo $objHelper->buildLink($target_audit, 'Show', False, 'gray');
+                                        echo $this->toolsHelper->buildLink($target_audit, 'Show', False, 'gray');
                                         echo '</td>';
                                     }
                                     ?>
