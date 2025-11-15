@@ -1,13 +1,15 @@
 <?php
 
 /**
- * 4.1.14
+ * @version    4.5.0
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  * 25/07/23
  * 14/11/24 CB insert debug statement, take owner name from ra_profiles
+ * 30/07/25 search for ID: using helper
+ * 08/08/25 CB SELECT all fields
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -49,6 +51,7 @@ class Mail_lstsModel extends ListModel {
                 'g.name',
                 'a.record_type',
                 'a.home_group_only',
+                'a.emails_outstanding',
                 'a.state',
             );
             $this->search_fields = $config['filter_fields'];
@@ -121,9 +124,7 @@ class Mail_lstsModel extends ListModel {
         $query = $db->getQuery(true);
 
         // Select the required fields from the table.
-        $query->select('a.id, a.state, a.ordering');
-        $query->select('a.name, a.group_code, a.record_type');
-        $query->select('a.owner_id, a.home_group_only, a.group_primary');
+        $query->select('a.*');
         $query->select('CASE WHEN record_type ="C" THEN "Closed" ELSE "Open" END as "Type"');
         $query->select("CASE WHEN a.state = 0 THEN 'Inactive' ELSE 'Active' END AS 'Status'");
         $query->select('CASE WHEN home_group_only =1 THEN "Yes" ELSE "No" END as "HomeGroup"');
@@ -144,11 +145,7 @@ class Mail_lstsModel extends ListModel {
         $searchWord = $this->getState('filter.search');
 
         if (!empty($searchWord)) {
-            if (stripos($searchWord, 'id:') === 0) {
-                $query->where('a.id = ' . (int) substr($searchWord, 3));
-            } else {
-                $query = ToolsHelper::buildSearchQuery($searchWord, $this->search_fields, $query);
-            }
+            $query = ToolsHelper::buildSearchQuery($searchWord, $this->search_fields, $query);
         }
 
         // Add the list ordering clause.

@@ -1,13 +1,16 @@
 <?php
 
 /**
- * @version    4.1.11
+ * @version    4.5.7
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  * 27/08/23 CB Don't show blocked users
  * 28/10/24 CB select requireReset
+ * 30/07/25 search for ID: using helper
+ * 06/08/25 CB replace u. with a. (for compatibility with ToolsHelper:search
+ * 19/10/25 CB search in email field
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -42,11 +45,11 @@ class ProfilesModel extends ListModel {
     public function __construct($config = array()) {
         if (empty($config['filter_fields'])) {
             $config['filter_fields'] = array(
-                'u.id',
-                'u.email',
-                'u.registerDate',
-                'u.lastvisitDate',
-                'u.block',
+                'a.id',
+                'a.email',
+                'a.registerDate',
+                'a.lastvisitDate',
+                'a.block',
                 'p.home_group',
                 'p.preferred_name',
             );
@@ -103,7 +106,6 @@ class ProfilesModel extends ListModel {
         $id .= ':' . $this->getState('filter.search');
         $id .= ':' . $this->getState('filter.state');
 
-
         return parent::getStoreId($id);
     }
 
@@ -121,32 +123,29 @@ class ProfilesModel extends ListModel {
 
         $query->select('p.id, p.home_group, p.preferred_name');
         //       $query->select('p.group_code');
-        $query->select('u.id as user_id, u.name, u.email');
-        $query->select(' u.block, u.requireReset, u.registerDate, u.lastvisitDate');
-        $query->from('`#__users` AS u');
+        $query->select('a.id as user_id, a.name, a.email');
+        $query->select(' a.block, a.requireReset, a.registerDate, a.lastvisitDate');
+        $query->from('`#__users` AS a');
 
-        $query->leftJoin($this->_db->qn('#__ra_profiles') . ' AS `p` ON p.id = u.id');
+        $query->leftJoin($this->_db->qn('#__ra_profiles') . ' AS `p` ON p.id = a.id');
 //      Don't show blocked users
-        $query->where($this->_db->qn('u.block') . '= 0');
+        $query->where($this->_db->qn('a.block') . '= 0');
         // Search for this word
-        $searchWord = $this->getState('filter.search');
+        $search = $this->getState('filter.search');
 
         // Search in these columns
-        // Fileds specifie here mustb also be defined in the construct function
-        $searchColumns = array(
-            'u.name',
-            'u.email',
-            'p.home_group',
-        );
-
-        if (!empty($searchWord)) {
-            if (stripos($searchWord, 'id:') === 0) {
-                // Build the ID search
-                $idPart = (int) substr($searchWord, 3);
-                $query->where($this->_db->qn('p.id') . ' = ' . $this->_db->q($idPart));
+        if (!empty($search)) {
+            $search_fields = array(
+                'a.id',
+                'a.name',
+                'p.preferred_name',
+                'a.email',
+                'p.home_group',
+            );
+            if (stripos($search, 'id:') === 0) {
+                $query->where('a.id = ' . (int) substr($search, 3));
             } else {
-                // Build the search query from the search word and search columns
-                $query = ToolsHelper::buildSearchQuery($searchWord, $searchColumns, $query);
+                $query = ToolsHelper::buildSearchQuery($search, $search_fields, $query);
             }
         }
 

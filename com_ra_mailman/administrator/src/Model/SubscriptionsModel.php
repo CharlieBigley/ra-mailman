@@ -1,15 +1,14 @@
 <?php
 
 /**
- * @version    4.4.4
+ * @version    4.4.13
  * @package    com_ra_mailman
- * @author     Charlie Bigley <webmaster@bigley.me.uk>
- * @copyright  2023 Charlie Bigley
+ * @author     Charlie Bigley <charlie@bigley.me.uk>
+ * @copyright  2025 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
- * 08/04/24 CB search on email
- * 28/10/24 CB select requireReset
- * 31/10/24 CB allow filtering
- * 10/06/25 CB don't show subs with invalid user
+ * 16/07/25 CB regenerated, updated with different $query
+ * 27/07/25 CB reinstate search using ToolsHelper
+ * 30/07/25 search for ID: using helper
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -30,7 +29,7 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 /**
  * Methods supporting a list of Subscriptions records.
  *
- * @since  1.0.4
+ * @since  4.4.11
  */
 class SubscriptionsModel extends ListModel {
 
@@ -53,7 +52,6 @@ class SubscriptionsModel extends ListModel {
                 'a.state',
                 'a.modified',
                 'a.expiry_date',
-                'a.ip_address',
             );
         }
 
@@ -101,7 +99,7 @@ class SubscriptionsModel extends ListModel {
      *
      * @return  string A store id.
      *
-     * @since   1.0.4
+     * @since   4.4.11
      */
     protected function getStoreId($id = '') {
         // Compile the store id.
@@ -116,7 +114,7 @@ class SubscriptionsModel extends ListModel {
      *
      * @return  DatabaseQuery
      *
-     * @since   1.0.4
+     * @since   4.4.11
      */
     protected function getListQuery() {
         // Create a new query object.
@@ -169,10 +167,10 @@ class SubscriptionsModel extends ListModel {
         );
         // Filter by search
         $search = $this->getState('filter.search');
+
         if (!empty($search)) {
             $query = ToolsHelper::buildSearchQuery($search, $search_fields, $query);
         }
-
 
         // Add the list ordering clause.
         $orderCol = $this->state->get('list.ordering', 'l.group_code');
@@ -183,8 +181,8 @@ class SubscriptionsModel extends ListModel {
             if ($orderCol == 'l.group_code') {
                 $query->order('l.name ASC');
                 $query->order('u.name ASC');
-                //               } elseif ($orderCol == 'a.name') {
-                //                   $query->order('a.group_code ASC');
+            } elseif ($orderCol == 'l.name') {
+                $query->order(' l.name , l.group_code ASC');
             }
         }
         if (JDEBUG) {

@@ -1,15 +1,12 @@
 <?php
 
 /**
- * @version    4.3.4
+ * @version    4.5.8
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
- * 14/11/23 CB remove reference to author_id
- * 14/10/24 CB return name of attachments in list query
- * 31/10/24 CB allow filtering
- * 09/04/25 CB correct WHERE clause for list_id
+ * 11/11/2025 CB created
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -27,11 +24,11 @@ use \Joomla\Utilities\ArrayHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
- * Methods supporting a list of Mailshots records.
+ * Methods supporting a list of Recipient records.
  *
  * @since  1.0.2
  */
-class MailshotsModel extends ListModel {
+class RecipientsModel extends ListModel {
 
     /**
      * Constructor.
@@ -45,10 +42,12 @@ class MailshotsModel extends ListModel {
         if (empty($config['filter_fields'])) {
             // This determined which fields are used for sorting
             $config['filter_fields'] = array(
-                'a.date_sent',
-                'a.title',
+                'm.date_sent',
+                'm.title',
                 'mail_list', 'mail_list.name',
-                'modified', 'a.modified',
+                'p.preferred_name',
+                'a.email',
+                'a.id',
             );
         }
 
@@ -69,7 +68,7 @@ class MailshotsModel extends ListModel {
      */
     protected function populateState($ordering = null, $direction = null) {
         // List state information.
-        parent::populateState('id', 'DESC');
+        parent::populateState('date_sent', 'DESC');
 
         $context = $this->getUserStateFromRequest($this->context . '.filter.search', 'filter_search');
         $this->setState('filter.search', $context);
@@ -106,7 +105,7 @@ class MailshotsModel extends ListModel {
         return parent::getStoreId($id);
     }
 
-    public function getTable($type = 'mailshots', $prefix = 'Ra_mailmanTable', $config = array()) {
+    public function getTable($type = 'recipients', $prefix = 'Ra_mailmanTable', $config = array()) {
         return Table::getInstance($type, $prefix, $config);
     }
 
@@ -123,19 +122,13 @@ class MailshotsModel extends ListModel {
 
         $query = $this->_db->getQuery(true);
 
-        $query->select('a.id, a.title, a.body');
-        $query->select('a.date_sent, a.mail_list_id, a.state');
-        $query->select('a.processing_started');
-        $query->select('a.attachment');
-        $query->select('a.created, a.modified');
-        $query->select('a.modified_by');
-
-        $query->from('`#__ra_mail_shots` AS a');
-
+        $query->select('a.id, a.email, a.mailshot_id, m.date_sent, m.title, p.preferred_name');
         $query->select('mail_list.name AS `list_name`');
-        $query->leftJoin($this->_db->qn('#__ra_mail_lists') . ' AS `mail_list` ON mail_list.id = a.mail_list_id');
-        $query->select('u.name AS `modified_by`');
-        $query->leftJoin($this->_db->qn('#__users') . ' AS `u` ON u.id = a.modified_by');
+
+        $query->from('`#__ra_mail_recipients` AS a');
+        $query->innerJoin($this->_db->qn('#__ra_profiles') . ' AS `p` ON p.id = a.user_id');
+        $query->innerJoin($this->_db->qn('#__ra_mail_shots') . ' AS `m` ON m.id = a.mailshot_id');
+        $query->leftJoin($this->_db->qn('#__ra_mail_lists') . ' AS `mail_list` ON mail_list.id = m.mail_list_id');
 
         // Filter by list
         $app = Factory::getApplication();
@@ -149,25 +142,15 @@ class MailshotsModel extends ListModel {
         if ($this->list_id !== '0') {
             $query->where('a.mail_list_id = ' . $this->list_id);
         }
-        // Filter by status
-        $status = $this->getState('filter.status');
-        if ($status == '1') {     // not yet sent
-            $query->where($this->_db->qn('a.date_sent') . ' IS NULL');
-            $query->where($this->_db->qn('a.processing_started') . ' IS NULL');
-        } elseif ($status == '2') {
-            $query->where($this->_db->qn('a.date_sent') . ' IS NULL');
-            $query->where($this->_db->qn('a.processing_started') . ' IS NOT NULL');
-        } elseif ($status == '3') {  // Sent
-            $query->where($this->_db->qn('a.processing_started') . ' IS NOT NULL');
-        }
         // Search for this word
         $searchWord = $this->getState('filter.search');
 
         // Search in these columns
         $searchColumns = array(
-            'a.title',
+            'm.title',
+            'a.email',
             'mail_list.name',
-            'a.body',
+            'p.preferred_name',
         );
 
         if (!empty($searchWord)) {
@@ -192,7 +175,7 @@ class MailshotsModel extends ListModel {
         if ($orderCol && $orderDirn) {
             $query->order($this->_db->escape($orderCol . ' ' . $orderDirn));
         } else {
-            $query->order($this->_db->escape('date_sent DESC'));
+            $query->order($this->_db->escape('m.date_sent DESC'));
         }
         if (JDEBUG) {
             Factory::getApplication()->enqueueMessage('sql=' . (string) $query, 'message');

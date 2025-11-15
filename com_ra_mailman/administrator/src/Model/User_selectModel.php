@@ -8,6 +8,7 @@
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  *  11/12/23 CB wildcard selection if selecting for an Area
  * 28/10/24 CB select requireReset
+ * 23/06/25 CB use sub_query
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -78,6 +79,16 @@ class User_selectModel extends ListModel {
         // list_id will have been passed as a parameter
         // It identifies the mailing list being updated
         $this->list_id = Factory::getApplication()->input->getInt('list_id', 0);
+        $toolsHelper = new ToolsHelper;
+// Create a sub query to see if users are already subscribed to the list in question
+        $sub_query = $this->_db->getQuery(true);
+        $sub_query->select('s.id, s.record_type, s.state');
+        $sub_query->select('s.list_id, s.user_id');
+        $sub_query->select('m.name as `Method`, ma.name AS `Access`');
+        $sub_query->from('#__ra_mail_subscriptions AS s');
+        $sub_query->leftJoin('#__ra_mail_methods AS m ON m.id =  s.method_id');
+        $sub_query->leftJoin('#__ra_mail_access AS ma ON ma.id =  s.record_type');
+        $sub_query->where('s.list_id=' . $this->list_id);
 
         // Create a new query object.
         $query = $this->_db->getQuery(true);
@@ -85,8 +96,8 @@ class User_selectModel extends ListModel {
         // Check if this list is "home group only" - if so, only members from that group
         // are eligible to subscribe
         $sql = 'SELECT group_code, home_group_only FROM `#__ra_mail_lists` WHERE id=' . $this->_db->q($this->list_id);
-        $objToolsHelper = new ToolsHelper;
-        $list = $objToolsHelper->getItem($sql);
+
+        $list = $toolsHelper->getItem($sql);
         if ($list->home_group_only == '1') {
             if (strlen($list->group_code) == 2) {
                 $query->where($this->_db->qn('p.home_group') . 'like ' . $this->_db->q($list->group_code . '%'));
@@ -98,9 +109,10 @@ class User_selectModel extends ListModel {
         $query->select('u.id, u.name, u.email');
         $query->select('p.home_group,p.preferred_name');
         $query->select('u.username, u.requireReset');
-
+        $query->select('subs.id as `sub_id`, subs.record_type, subs.state, subs.Method, subs.Access');
         $query->from('#__users AS u');
         $query->innerJoin('#__ra_profiles AS p ON p.id = u.id');
+        $query->leftJoin('(' . $sub_query . ') AS subs ON subs.user_id=u.id');
 
         // Only look for active Users
         $query->where($this->_db->qn('u.block') . '= 0');
@@ -153,7 +165,6 @@ class User_selectModel extends ListModel {
         // Compile the store id.
         $id .= ':' . $this->getState('filter.search');
         $id .= ':' . $this->getState('filter.state');
-
 
         return parent::getStoreId($id);
     }

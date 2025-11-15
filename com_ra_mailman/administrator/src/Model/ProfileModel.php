@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.2.0
+ * @version    4.4.10
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -10,6 +10,7 @@
  * 19/02/24 CB correction for creating Profile records - don't pass parameters
  * 05/11/24 CB lookup real name
  * 12/02/25 CB replace getIdentity with getCurrentUser
+ * 07/07/25 CB use createUserDirect, not createUser
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -234,12 +235,10 @@ class ProfileModel extends AdminModel {
         $preferred_name = $data['preferred_name'];
 
         if (empty($id)) {
-//      see if this email is already in use
-            $check_email = $objUserHelper->checkEmail($email, $preferred_name, $group_code);
-            if ($check_email === True) {
-
-            } else {
-                Factory::getApplication()->enqueueMessage($check_email, 'error');
+            // check if email or real name already being used
+            $message = $objUserHelper->userExists($email, $real_name);
+            if ($message !== '') {
+                Factory::getApplication()->enqueueMessage($message, 'Error');
                 return false;
             }
         }
@@ -274,7 +273,7 @@ class ProfileModel extends AdminModel {
 //        $objUserHelper->name = $data['preferred_name'];
         $objUserHelper->name = $data['real_name'];
         $objUserHelper->email = $data['email'];
-        $response = $objUserHelper->createUser();
+        $response = $objUserHelper->createUserDirect();
         if ($response == false) {
             Factory::getApplication()->enqueueMessage($objUserHelper->error, 'error');
             return false;
