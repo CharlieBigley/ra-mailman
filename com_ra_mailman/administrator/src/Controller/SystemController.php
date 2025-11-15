@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version     4.4.5
+ * @version     4.5.8
  * @package     com_ra_mailman
  *
  * @copyright   Copyright (C) 2005 - 2019 Open Source Matters, Inc. All rights reserved.
@@ -10,6 +10,9 @@
  * 08/01/24 CB use SubscriptionHelper
  * 14/11/24 CB duffRecords
  * 26/05/25 CB checkSchema / ra_reports
+ * 29/06/25 CB use UserHelper from Tools, not Mailman; purgeBlockedUsers
+ * 11/08/25 CB allow forced send of emails
+ * 03/11/25 CB delete bookings, return to reports menu after Purge All
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Controller;
@@ -24,9 +27,10 @@ use Joomla\CMS\Toolbar\ToolbarHelper;
 use Joomla\CMS\MVC\Controller\FormController;
 use Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use Ramblers\Component\Ra_mailman\Site\Helpers\SubscriptionHelper;
-use Ramblers\Component\Ra_mailman\Site\Helpers\UserHelper;
+//use Ramblers\Component\Ra_mailman\Site\Helpers\UserHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\SchemaHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
+use Ramblers\Component\Ra_tools\Site\Helpers\UserHelper;
 
 class SystemController extends FormController {
 
@@ -239,7 +243,7 @@ class SystemController extends FormController {
                 $sql_audit .= 'WHERE object_id=' . $row->id;
                 $audit_rows = $toolsHelper->getRows($sql_audit);
                 foreach ($audit_rows as $audit_row) {
-                    $sql = 'DELETE FROM  #__ra_mail_subscriptions_audit ';
+                    $sql = 'DELETE FROM #__ra_mail_subscriptions_audit ';
                     $sql .= 'WHERE object_id=' . $audit_row->id;
                     echo $sql . '<br>';
                     $toolsHelper->executeCommand($sql);
@@ -312,47 +316,158 @@ class SystemController extends FormController {
         $db->execute();
     }
 
-    function test() {
-        /*
-          <a href="default.asp"><img src="smiley.gif" alt="HTML tutorial" style="width:42px;height:42px;"></a>
-         */
-        $params = ComponentHelper::getParams('com_ra_mailman');
-        // 20/04/25 Including https gives error
-        //$header = '<a target="_blank" href="https://' . $params->get('website') . '" >';
-        $header = '<a target="_blank" href="' . $params->get('website') . '" >';
-
-        $logo = '/images/com_ra_mailman/' . $params->get('logo_file');
-        if (file_exists(JPATH_ROOT . $logo)) {
-            $header .= '<img src="' . $logo . '" alt="Logo" style="width:';
-            $header .= $params->get('width') . 'px;height:' . $params->get('height') . 'px; ';
-            $header .= 'float: right;" />';
-            $header .= '</a>';
-        } else {
-            echo JPATH_ROOT . $logo . ' not found<br>';
-            $header .= 'Website</a>';
+    public function purgeAllUsers() {
+        ToolBarHelper::title($this->prefix . 'Purging Blocked users');
+        if (!$this->toolsHelper->isSuperuser()) {
+            echo 'Invalid access<br>';
+            return;
         }
-//        $header = '<img src="https://www.stokeandnewcastleramblers.org.uk/images/ra-images/2022brand/Logo%2090px.png" alt="Logo" width="90" height="90" style="float: right;" />';
+        $sql = "SELECT id, name as 'User', email  ";
+        $sql .= 'FROM `#__users` ';
+        $sql .= ' WHERE block=1';
+        $sql .= ' ORDER BY id';
+        $target = 'administrator/index.php?option=com_ra_mailman&task=system.purgeUser&id=';
+        $rows = $this->toolsHelper->getRows($sql);
+        foreach ($rows as $row) {
+            $this->purgeUserRecord($row->id);
+        }
+        $userHelper = new UserHelper;
+        $userHelper->purgeProfiles();
+        $back = 'administrator/index.php?option=com_ra_mailman&view=reports';
+        echo $this->toolsHelper->backButton($back);
+    }
 
-        echo $header . '<br>';
-        echo '<br>';
+    public function purgeUser() {
+        $id = $this->objApp->input->getInt('id', '0');
+        ToolBarHelper::title($this->prefix . 'Purging Blocked user');
+        if (!$this->toolsHelper->isSuperuser()) {
+            echo 'Invalid access<br>';
+        } else {
+            if ($id > 0) {
+                $this->purgeUserRecord($id);
+            }
+        }
+        $back = 'administrator/index.php?option=com_ra_mailman&task=reports.blockedUsers';
+        echo $this->toolsHelper->backButton($back);
+    }
+
+    public function purgeUserRecord($id) {
+        echo 'Purging User ' . $id . '<br>';
+        $sql = 'DELETE FROM  #__user_usergroup_map ';
+        $sql .= 'WHERE user_id=' . $id;
+        echo $sql . '<br>';
+        $this->toolsHelper->executeCommand($sql);
+        $sql = 'DELETE FROM  #__ra_profiles ';
+        $sql .= 'WHERE id=' . $id;
+        echo $sql . '<br>';
+        $this->toolsHelper->executeCommand($sql);
+        $sql = 'DELETE FROM  #__users ';
+        $sql .= 'WHERE id=' . $id;
+        echo $sql . '<br>';
+        $this->toolsHelper->executeCommand($sql);
+        if (ToolsHelper::isInstalled('com_ra_events')) {
+            $sql = 'DELETE FROM  #__ra_bookings ';
+            $sql .= 'WHERE user_id=' . $id;
+            echo $sql . '<br>';
+            $this->toolsHelper->executeCommand($sql);
+        }
+    }
+
+    public function sendEmail() {
+        // Invoked from report recentMailshots to force resend on-line
+        // this is the same processing as is carried out by the cron job
+        $mail_list_id = $this->app->input->getInt('id', '0');
+
+        if ($mail_list_id == 0) {
+            Factory::getApplication()->enqueueMessage('mailshot id is zero', 'notice');
+        } else {
+            $this->toolsHelper->createLog('RA Mailman', 1, $mail_list_id, 'Sending of mailshot initiated');
+            $mailHelper = new MailHelper;
+            $last_mailshot = $mailHelper->lastMailshot($mail_list_id); //
+//          Factory::getApplication()->enqueueMessage('mailshot id is ' . $last_mailshot->id, 'notice');
+            $mailHelper->sendEmails($last_mailshot->id);
+            foreach ($mailHelper->messages as $message) {
+                Factory::getApplication()->enqueueMessage($message, 'info');
+                $this->toolsHelper->createLog('RA Mailman', 1, $mail_list_id, $message);
+            }
+        }
+        $back = 'index.php?option=com_ra_mailman&task=reports.recentMailshots';
+        $this->setRedirect($back);
+    }
+
+    function test() {
         $toolsHelper = new ToolsHelper;
+        $mailHelper = new MailHelper;
+        $helper = New SchemaHelper;
+        $helper->checkColumn('ra_logfile', 'sub_system', 'U', 'VARCHAR(10) NOT NULL; ');
         $target = 'administrator/index.php?option=com_ra_tools&view=dashboard';
         echo $toolsHelper->backButton($target);
-        return;
+//        return;
 
         $date = Factory::getDate();
-//        $date = Factory::getDate('now', Factory::getConfig()->get('offset'));
-//        $date->modify('+1 year');
-//        echo substr($date->toSql(), 0, 10);
-//        return;
-        echo 'info<i class="icon-info"></i><br>';
-        echo 'refresh<i class="icon-refresh"></i><br>';
-        echo 'envelope<i class="icon-envelope"></i><br>';
-        echo 'repeat<i class="fa--repeat"></i><br>';
-        echo 'calendar<i class="fa-solid fa-calendar-days"></i><br>';
-        echo '<i class="fa-calendar-days"></i><br>';
-        echo 'OK<br>';
+        echo $date . '<br>';
 
+        $sql = 'SELECT id, group_code, name, emails_outstanding ';
+        $sql .= 'FROM #__ra_mail_lists ';
+        $sql .= 'WHERE emails_outstanding>0 ORDER BY group_code, name';
+        $rows = $toolsHelper->getRows($sql);
+        $toolsHelper->showQuery($sql);
+        $id = 0;
+        foreach ($rows as $row) {
+            if ($id == 0) {
+                $id = $row->id;
+                $name = $row->group_code . '/' . $row->name;
+            }
+            $message .= 'Group ' . $row->group_code . ', List ' . $row->name;
+            $message .= ',' . $row->emails_outstanding . ' emails to be sent<br>';
+        }
+        if ($id > 0) {
+            $message .= 'Sending emails for ' . $name . '<br>';
+            echo $message;
+        }
+///////////////////////////////////////////////////////////////////////////////////////////////
+        $sql = 'SELECT l.id, COUNT(u.id)  ';
+        $sql .= 'FROM #__ra_mail_shots AS m ';
+        $sql .= 'INNER JOIN `#__ra_mail_lists` AS l ON l.id = m.mail_list_id ';
+        $sql .= 'INNER JOIN #__ra_mail_subscriptions AS s ON s.list_id = l.id ';
+        $sql .= 'INNER JOIN #__users AS u ON u.id = s.user_id ';
+        $sql .= 'LEFT JOIN #__ra_mail_recipients AS mr ON mr.mailshot_id =m.id ';
+        $sql .= 'AND u.id = mr.user_id ';
+        $sql .= 'WHERE mr.id IS NULL ';
+        $sql .= 'AND l.id=' . $id;
+        $sql .= ' AND s.state=1';
+        $sql .= ' AND u.block=0 AND u.requireReset=0';
+        //      echo $sql;
+
+        $item = $this->toolsHelper->getItem($sql);
+        echo'List is ' . $item->id . '<br>';
+
+        $last_mailshot = $mailHelper->lastMailshot($item->id); //
+        //      var_dump($last_mailshot);
+        echo 'mailshot is ' . $last_mailshot->id . '<br>';
+        //       return;
+        $mail_shot_id = $last_mailshot->id;
+        $subscribers = $mailHelper->getSubscribers($mail_shot_id);
+        $count_subscribers = count($subscribers);
+        $count = 1;
+        $outstanding = $count_subscribers;
+        $current_email = '';
+        foreach ($subscribers as $subscriber) {
+            echo $subscriber->email . '<br>';
+        }
+        return;
+// Only get users who have not yet received their message
+//        $subscribers = $this->getSubscribers($mailshot_id, 'Y');
+//        $count_subscribers = count($subscribers);
+//        $message .= ', ' . $count_subscribers . ' users outstanding';
+////////////////////////////////////////////////////////////////////////////////
+//    $objSubscription->cancel();
+//        $objSubscription = new SubscriptionHelper;
+//        $objUserHelper = new UserHelper;
+//        $objUserHelper->blockUser(934);   // Webbie
+    }
+
+    private function testRenewals() {
         $body = 'Date <b>' . HTMLHelper::_('date', $today, 'd M y') . '</b><br>';
         $body .= 'Time <b>' . HTMLHelper::_('date', $today, 'h.i') . '</b><br>';
         $objSubscription = new SubscriptionHelper;
@@ -410,11 +525,6 @@ class SystemController extends FormController {
 
         $objSubscription->setReminder();
         echo "2 after reset $objSubscription->reminder_sent<br>";
-
-        //    $objSubscription->cancel();
-//        $objSubscription = new SubscriptionHelper;
-//        $objUserHelper = new UserHelper;
-//        $objUserHelper->blockUser(934);   // Webbie
     }
 
 }
