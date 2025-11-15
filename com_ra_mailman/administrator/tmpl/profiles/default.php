@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.2.0
+ * @version    4.4.13
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -12,6 +12,7 @@
  * 12/02/25 CB eliminate use of getIdentity
  * 17/02/25 CB eliminate code for re-ordering, use this->user
  * 21/02/25 CB correct column heading for Pref Name
+ *  06/08/25 CB replace u. with a. (for compatibility with ToolsHelper:search
  *
  */
 // No direct access
@@ -61,7 +62,7 @@ $listDirn = $this->state->get('list.direction');
                             </th>
                             <?php
                             echo "<th class='left'>";
-                            echo HTMLHelper::_('searchtools.sort', 'Email', 'u.email', $listDirn, $listOrder);
+                            echo HTMLHelper::_('searchtools.sort', 'Email', 'a.email', $listDirn, $listOrder);
                             echo '</th>';
 
                             echo '<th>Lists</th>';
@@ -69,15 +70,15 @@ $listDirn = $this->state->get('list.direction');
                             echo '<th>Mailshots</th>';
 
                             echo "<th class='left'>";
-                            echo HTMLHelper::_('searchtools.sort', 'Registered', 'u.registerDate', $listDirn, $listOrder);
+                            echo HTMLHelper::_('searchtools.sort', 'Registered', 'a.registerDate', $listDirn, $listOrder);
                             echo '</th>';
 
                             echo "<th class='left'>";
-                            echo HTMLHelper::_('searchtools.sort', 'Last visit', 'u.lastvisitDate', $listDirn, $listOrder);
+                            echo HTMLHelper::_('searchtools.sort', 'Last visit', 'a.lastvisitDate', $listDirn, $listOrder);
                             echo '</th>';
 
                             echo "<th class='left'>";
-                            echo HTMLHelper::_('searchtools.sort', 'id', 'u.id', $listDirn, $listOrder);
+                            echo HTMLHelper::_('searchtools.sort', 'id', 'a.id', $listDirn, $listOrder);
                             echo '</th>';
                             ?>
 
@@ -107,7 +108,10 @@ $listDirn = $this->state->get('list.direction');
                             echo '<td>';
 //                          If no profile is present, take name from User record
                             if ($item->preferred_name == '') {
-                                $display_name = $this->escape($item->name);
+                                //$display_name = $this->escape($item->name);
+                                $display_name = '<b>User ' . $item->id . '<b>';
+                                $message = 'Please update user ' . $item->user_id . ' without Preferred name';
+                                Factory::getApplication()->enqueueMessage($message, 'warning');
                             } else {
                                 $display_name = $this->escape($item->preferred_name);
                             }
