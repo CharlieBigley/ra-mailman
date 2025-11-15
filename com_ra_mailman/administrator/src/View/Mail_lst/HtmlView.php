@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.4.0
+ * @version    4.5.8
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -11,6 +11,7 @@
  * 13/02/25 CB replace getIdentity with $this->getCurrentUser
  * 13/04/25 CB don't show "Make Prime" when first creating
  * 01/06/25 CB Check that a subs record is present for the owner of the list
+ * 14/11/25 CB warning if checked out
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\View\Mail_lst;
@@ -64,18 +65,18 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         if ($this->item->id == 0) {
             $this->count = 0;
         } else {
-            $objHelper = new ToolsHelper;
+            $this->toolsHelper = new ToolsHelper;
             require_once JPATH_SITE . '/components/com_ra_mailman/src/Helpers/Mailhelper.php';
             $objMailHelper = new MailHelper;
             $this->count = $objMailHelper->countSubscribers($this->item->id);
             // Check that a subs record is present for the owner of the list
-            $objMailHelper->subscribe($this->item->id, $this->user->id, 1, 6);
+            $objMailHelper->subscribe($this->item->id, $this->item->owner_id, 1, 6);
         }
         $this->addToolbar();
         parent::display($tpl);
         $target = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.export&id=' . $this->item->id;
         if ($this->count > 0) {
-            echo $objHelper->buildLink($target, 'Export');
+            echo $this->toolsHelper->buildLink($target, 'Export');
         }
     }
 
@@ -93,6 +94,8 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
 
         if (isset($this->item->checked_out)) {
             $checkedOut = !($this->item->checked_out == 0 || $this->item->checked_out == $this->user->get('id'));
+            $user_name = $this->toolsHelper->lookupUser($this->item->checked_out);
+            Factory::getApplication()->enqueueMessage('This item is currently checked out by ' . $user_name, 'warning');
         } else {
             $checkedOut = false;
         }
