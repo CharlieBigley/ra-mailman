@@ -6,7 +6,7 @@
  * Possibly could rename the file in folder com_ra_mailman
  *
  *
- * @version    4.3.4
+ * @version    4.5.7
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -26,6 +26,7 @@
  * 14/04/25 CB delete any existing copy of the upload file
  * 02/05/25 CN remove diagnostic
  * 04/05/25 CB cater for update of file name on upload
+ * 18/10/25 CB allow text/comma-separated-values
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -238,7 +239,7 @@ class DataloadModel extends AdminModel {
     public function validate($form, $data, $group = true) {
         $app = Factory::getApplication();
 
-        $MIMETypes = 'text/plain,text/csv';
+        $MIMETypes = 'text/plain,text/csv,text/comma-separated-values';
 
         $array = $app->input->get('jform', array(), 'ARRAY');
 
@@ -299,7 +300,7 @@ class DataloadModel extends AdminModel {
             }
         } else {
             // Check for filetype
-            $MIMETypes = 'text/plain,text/csv';
+            $MIMETypes = 'text/plain,text/csv,text/comma-separated-values';
             $validMIMEArray = explode(',', $MIMETypes);
             $fileMime = $singleFile['type'];
 
