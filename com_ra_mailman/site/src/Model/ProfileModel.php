@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.2.2
+ * @version    4.5.7
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -18,6 +18,7 @@
  * 18/02/25 CB change descriptions if administrator is registering
  * 21/02/25 CB change label if administrator is registering
  * 08/03/25 CB continue with warning if default maillist not found
+ * 18/10/25 CB Allow creation of record even if user id=0
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Model;
@@ -94,6 +95,8 @@ class ProfileModel extends FormModel implements CurrentUserInterface {
      * @throws  Exception
      */
     public function getItem($id = null) {
+        $user = $this->getCurrentUser();
+        $user_id = $user->id;
         if ($this->item === null) {
             $this->item = false;
 
@@ -110,7 +113,7 @@ class ProfileModel extends FormModel implements CurrentUserInterface {
                 $user = $this->getCurrentUser();
                 $id = $table->id;
 
-                $canEdit = $user->authorise('core.edit', 'com_ra_mailman') || $user->authorise('core.create', 'com_ra_mailman');
+                $canEdit = ($user_id == 0) || $user->authorise('core.edit', 'com_ra_mailman') || $user->authorise('core.create', 'com_ra_mailman');
 
                 if (!$canEdit && $user->authorise('core.edit.own', 'com_ra_mailman')) {
                     $canEdit = $user->id == $table->created_by;

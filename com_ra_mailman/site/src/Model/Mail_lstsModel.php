@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.1.14
+ * @version    4.5.4
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -10,6 +10,9 @@
  * 30/01/24 CB include list owner in search
  * 14/10/24 CB exclude ordering from fields selected
  * 14/11/24 CB allow sort by preferred_name
+ * 30/07/25 search for ID: using helper
+ * 14/08/25 CB get all fields
+ * 01/10/25 CB correct sort fields
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Model;
@@ -47,6 +50,7 @@ class Mail_lstsModel extends ListModel {
                 'a.group_code',
                 'p.preferred_name',
                 'a.record_type',
+                'a.emails_outstanding',
                 'a.home_group_only',
             );
         }
@@ -118,10 +122,7 @@ class Mail_lstsModel extends ListModel {
         $db = $this->getDbo();
         $query = $this->_db->getQuery(true);
 
-        $query->select('a.id');
-        $query->select('a.name, a.group_code, a.record_type');
-        $query->select('a.home_group_only');
-        $query->select('a.owner_id');
+        $query->select('a.*');
         $query->select("CASE WHEN a.record_type = 'O' THEN 'Open' ELSE 'Closed' END AS 'list_type'");
         $query->select("CASE WHEN a.home_group_only = 1 THEN 'Yes' ELSE 'No' END AS 'public'");
 
@@ -152,18 +153,13 @@ class Mail_lstsModel extends ListModel {
         );
 
         if (!empty($search)) {
-            if (stripos($search, 'id:') === 0) {
-                $query->where('a.id = ' . (int) substr($search, 3));
-            } else {
-                $query = ToolsHelper::buildSearchQuery($search, $filter_fields, $query);
-            }
+            $query = ToolsHelper::buildSearchQuery($search, $filter_fields, $query);
         }
 
         // Add the list ordering clause.
         $orderCol = $this->state->get('list.ordering', 'a.name');
         $orderDirn = $this->state->get('list.name', 'ASC');
         if ($orderCol && $orderDirn) {
-            $query->order($db->escape($orderCol . ' ' . $orderDirn));
             if ($orderCol && $orderDirn) {
                 $query->order($this->_db->escape($orderCol . ' ' . $orderDirn));
                 if ($orderCol == 'a.group_code') {

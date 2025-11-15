@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.1.11
+ * @version    4.5.8
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -11,6 +11,8 @@
  * 21/11/23 CB only show mailshots where date_sent is not NULL
  * 23/12/23 CB default sort order to date_sent DESC
  * 14/10/24 CB return name of attachments in list query
+ * 14/08/24 CB get all fields
+ * 14/11/25 CB change __ra_mailshots to __ra_mail_shots
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Model;
@@ -122,22 +124,12 @@ class MailshotsModel extends ListModel {
         $db = $this->getDbo();
         $query = $db->getQuery(true);
 
-        $query->select('a.id, a.title, a.body');
-        $query->select('a.date_sent, a.mail_list_id, a.state');
-        $query->select('a.processing_started');
-        //       $query->select("CASE when CHAR_LENGTH(a.attachment) = 0 THEN" .
-        //               " '-' ELSE " .
-        //               "'Y' END as attachment");
-        $query->select('a.attachment');
-        $query->select('a.created, a.modified');
-        $query->select('a.modified_by');
-
+        $query->select('a.*');
         $query->from('`#__ra_mail_shots` AS a');
 
         $query->select('mail_list.name AS `list_name`');
         $query->leftJoin($this->_db->qn('#__ra_mail_lists') . ' AS `mail_list` ON mail_list.id = a.mail_list_id');
-        //       $query->select('u.name AS `modified_by`');
-        //       $query->leftJoin($this->_db->qn('#__users') . ' AS `u` ON u.id = a.modified_by');
+
         $query->where('a.date_sent IS NOT NULL');
         if ($this->list_id > '0') {
             $query->where($this->_db->qn('a.mail_list_id') . ' = ' . $this->_db->q($this->list_id));
@@ -194,7 +186,7 @@ class MailshotsModel extends ListModel {
                     $query = $db->getQuery(true);
                     $query
                             ->select('`description`')
-                            ->from($db->quoteName('#__ra_mailshots'))
+                            ->from($db->quoteName('#__ra_mail_shots'))
                             ->where($db->quoteName('id') . ' = ' . $db->quote($db->escape($value)));
 
                     $db->setQuery($query);
