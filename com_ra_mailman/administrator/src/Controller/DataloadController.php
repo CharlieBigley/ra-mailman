@@ -48,6 +48,20 @@ class DataloadController extends FormController {
         $this->setRedirect('index.php?option=com_ra_tools&view=dashboard');
     }
 
+    public function check($key = NULL, $urlVar = NULL) {
+        $return = $this->saveRecord($key, $urlVar);
+        // Check for errors (lack of authority)
+        if ($return === false) {
+            // Redirect back to the edit screen.
+            $this->setMessage('Save failed', $model->getError(), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ra_mailman&view=dataload&layout=edit', false));
+            $this->redirect();
+        }
+        // Actual processing of the data file is carried out by view process / check
+        $this->setRedirect(Route::_('index.php?option=com_ra_mailman&view=process&layout=check', false));
+        $this->redirect();
+    }
+
     public function continue() {
         // Invoked from view process id processing is set to 0
         // sets flag to 1, returns to the same view
@@ -66,6 +80,88 @@ class DataloadController extends FormController {
      * @since   1.0.4
      */
     public function save($key = NULL, $urlVar = NULL) {
+        $return = $this->saveRecord($key, $urlVar);
+        /*
+          //       echo 'Controller: save<br>';
+          // Check for request forgeries.
+          $this->checkToken();
+
+          // Initialise variables.
+          $model = $this->getModel('Dataload', 'Administrator');
+
+          // Get the user data.
+          $data = $this->input->get('jform', array(), 'array');
+
+          // Validate the posted data.
+          $form = $model->getForm();
+
+          if (!$form) {
+          throw new \Exception($model->getError(), 500);
+          }
+
+          // Send an object which can be modified through the plugin event
+          $objData = (object) $data;
+          $this->app->triggerEvent(
+          'onContentNormaliseRequestData',
+          array($this->option . '.' . $this->context, $objData, $form)
+          );
+
+          $data = (array) $objData;
+
+          // Validate the posted data.
+          $data = $model->validate($form, $data);
+          echo 'Error: dumping data<br>';
+          var_dump($data);
+          //       die('Controller after save');
+          // Check for errors.
+          if ($data === false) {
+
+          // Get the validation messages.
+          $errors = $model->getErrors();
+
+          // Push up to three validation messages out to the user.
+          for ($i = 0, $n = count($errors); $i < $n && $i < 3; $i++) {
+          if ($errors[$i] instanceof \Exception) {
+          $this->app->enqueueMessage($errors[$i]->getMessage(), 'warning');
+          } else {
+          $this->app->enqueueMessage($errors[$i], 'warning');
+          }
+          }
+
+          $jform = $this->input->get('jform', array(), 'ARRAY');
+
+          // Save the data in the session.
+          $this->app->setUserState('com_ra_mailman.edit.upload.data', $jform);
+
+          // Redirect back to the edit screen.
+
+          $this->setRedirect(Route::_('/administrator/index.php?option=com_ra_mailman&view=dataload', false));
+
+          $this->redirect();
+          }
+          //        echo 'Controller save 2<br>';
+          // Save the data in the session.
+          $this->app->setUserState('com_ra_mailman.edit.upload.data', $data);
+
+          // Attempt to save the data. This will carry out the file upload
+
+          $return = $model->save($data);
+         */
+        //        echo 'Controller save 1<br>';
+//        echo "<br>Return = $return<br>";
+        // Check for errors (lack of authority)
+        if ($return === false) {
+            // Redirect back to the edit screen.
+            $this->setMessage('Save failed', $model->getError(), 'warning');
+            $this->setRedirect(Route::_('index.php?option=com_ra_mailman&view=dataload&layout=edit', false));
+            $this->redirect();
+        }
+        // Actual processing of the data file is carried out by view Process
+        $this->setRedirect(Route::_('index.php?option=com_ra_mailman&view=process', false));
+        $this->redirect();
+    }
+
+    public function saveRecord($key = NULL, $urlVar = NULL) {
         //       echo 'Controller: save<br>';
         // Check for request forgeries.
         $this->checkToken();
@@ -123,25 +219,13 @@ class DataloadController extends FormController {
 
             $this->redirect();
         }
-//        echo 'Controller save 2<br>';
+        //        echo 'Controller save 2<br>';
         // Save the data in the session.
         $this->app->setUserState('com_ra_mailman.edit.upload.data', $data);
 
         // Attempt to save the data. This will carry out the file upload
 
-        $return = $model->save($data);
-//        echo 'Controller save 1<br>';
-//        echo "<br>Return = $return<br>";
-        // Check for errors (lack of authority)
-        if ($return === false) {
-            // Redirect back to the edit screen.
-            $this->setMessage('Save failed', $model->getError(), 'warning');
-            $this->setRedirect(Route::_('index.php?option=com_ra_mailman&view=dataload&layout=edit', false));
-            $this->redirect();
-        }
-        // Actual processing of the data file is carried out by view Process
-        $this->setRedirect(Route::_('index.php?option=com_ra_mailman&view=process', false));
-        $this->redirect();
+        return $model->save($data);
     }
 
 }
