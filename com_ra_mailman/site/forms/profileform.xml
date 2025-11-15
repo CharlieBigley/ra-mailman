@@ -6,7 +6,7 @@
   > 
     <field name="id" type="text" readonly="true" class="readonly" default="0" description="JGLOBAL_FIELD_ID_DESC"/>
     
-    <field name="group_code" 
+    <field name="home_group" 
         filter="safehtml" 
         type="text" 
         validate="groupcode" 
