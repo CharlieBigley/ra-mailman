@@ -1,13 +1,14 @@
 <?php
 
 /**
- * @version    4.1.12
+ * @version    4.5.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  * 08/04/24 CB set up $this->group_code
  * 29/10/24 CB show message if password reset required
+ * 03/09/25 CB don't use back button
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\View\List_select;
@@ -90,8 +91,6 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
             throw new \Exception(implode("\n", $errors));
         }
         $this->addToolbar();
-        $back = 'administrator/index.php?option=com_ra_mailman&view=profiles';
-        echo $this->objHelper->backButton($back);
         $this->sidebar = Sidebar::render();
         parent::display($tpl);
     }
