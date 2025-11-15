@@ -11,6 +11,34 @@
 # 19/10/24 CB add clusters/groups
 # 03/02/25 CB set defaults for ra_profiles home_group & preferred_name
 # 01/06/25 CB add ra_import_reports, remove clusters & groups
+# 16/06/25 CB added table ra_emails
+# 20/10/25 CB added mail_lists / emails_outstanding
+CREATE TABLE IF NOT EXISTS `#__ra_emails` (
+    `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+    `sub_system` VARCHAR(10)  NULL  DEFAULT "",
+    `record_type` VARCHAR(2)  NULL  DEFAULT "",
+    `ref` INT  DEFAULT "0", 
+    `date_sent` VARCHAR(20)  NULL  DEFAULT "",
+    `sender_name` VARCHAR(100)  NULL  DEFAULT "",
+    `sender_email` VARCHAR(100)  NULL  DEFAULT "",
+    `addressee_name` VARCHAR(100)  NULL  DEFAULT "",
+    `addressee_email` TEXT,
+    `title` VARCHAR(100)  NOT NULL ,
+    `body` TEXT NOT NULL ,
+    `attachments` TEXT NULL ,
+    `state` TINYINT(1)  NULL  DEFAULT 1,
+    `created` DATETIME NULL  DEFAULT NULL ,
+    `created_by` INT(11)  NULL  DEFAULT 0,
+    `modified` DATETIME NULL  DEFAULT NULL ,
+    `modified_by` INT(11)  NULL  DEFAULT 0,
+    `checked_out` INT(11)  UNSIGNED,
+    `checked_out_time` DATETIME NULL  DEFAULT NULL ,
+    PRIMARY KEY (`id`)
+    ,KEY `idx_state` (`state`)
+    ,KEY `idx_checked_out` (`checked_out`)
+    ,KEY `idx_created_by` (`created_by`)
+    ,KEY `idx_modified_by` (`modified_by`)
+) DEFAULT COLLATE=utf8mb4_unicode_ci;
 # ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `#__ra_import_reports` (
             `id` INT NOT NULL AUTO_INCREMENT,
@@ -61,8 +89,9 @@ CREATE TABLE IF NOT EXISTS `#__ra_mail_lists` (
 	`owner_id` INT NOT NULL,
 	`record_type` VARCHAR(1) NOT NULL,
 	`home_group_only` INT NOT NULL,
-        `chat_list` VARCHAR(1)  NOT NULL  DEFAULT "0",
+        `chat_list` VARCHAR(1)  NOT NULL DEFAULT "0",
 	`footer` MEDIUMTEXT NOT NULL,
+        `emails_outstanding` INT NOT NULL DEFAULT "0",   
 # Following two fields probably not required
 	`ordering` INT NULL,
         `checked_out_time` DATETIME NULL DEFAULT NULL,
@@ -155,48 +184,4 @@ CREATE TABLE IF NOT EXISTS `#__ra_mail_subscriptions_audit` (
     INDEX idx_object_id(object_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
 # ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `#__ra_profiles` (
-        `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-        `home_group` VARCHAR(255) NOT NULL  DEFAULT "",
-        `preferred_name` VARCHAR(60)  NOT NULL  DEFAULT "",
-        `groups_to_follow` VARCHAR(255)  NOT NULL  DEFAULT "",
-        `privacy_level` VARCHAR(1)  NOT NULL  DEFAULT "3",
-        `mobile` VARCHAR(100)  NULL  DEFAULT "",
-        `contactviaemail` VARCHAR(1)  NULL  DEFAULT "1",
-        `contactviatextmessage` VARCHAR(1)  NULL  DEFAULT "0",
-        `acknowledge_follow` VARCHAR(1)  NULL  DEFAULT "0",
-        `notify_joiners` VARCHAR(255)  NULL  DEFAULT "1",
-        `min_miles` VARCHAR(2)  NULL  DEFAULT "0",
-        `max_miles` VARCHAR(2)  NULL  DEFAULT "0",
-        `max_radius` VARCHAR(3)  NULL  DEFAULT "30",
-        `state` TINYINT(1) NULL DEFAULT 1,
-        `created` DATETIME NULL DEFAULT NULL,
-        `created_by` INT(11) NULL DEFAULT 0,
-        `modified` DATETIME NULL DEFAULT NULL,
-        `modified_by` INT(11)  NULL  DEFAULT 0,
-    PRIMARY KEY (`id`),
-    INDEX idx_home_group(home_group)
-) DEFAULT COLLATE=utf8mb4_unicode_ci;
-# ------------------------------------------------------------------------------
-# Logfile is required for the CLI program ra_renewals
-CREATE TABLE IF NOT EXISTS `#__ra_logfile` (
-  `id` INT NOT NULL AUTO_INCREMENT,
-  `log_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `record_type` char(2) NOT NULL,
-  `ref` varchar(10) DEFAULT NULL,
-  `message` mediumtext CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-	PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
-# ------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS `#__ra_booking_rates` (
-	`id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-	`hours` DECIMAL(4,2) NOT NULL,
-	`total_charge` DECIMAL(5,2) NOT NULL,
-        `created` TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-        `created_by` INT NULL DEFAULT "0",
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
-# ------------------------------------------------------------------------------
-# INSERT INTO `#__ra_booking_rates` (`id`, `hours`, `total_charge`, `created`, `created_by`) 
-# VALUES (NULL, '3', '50', CURRENT_TIMESTAMP, '0'), 
-# (NULL, '4', '68', CURRENT_TIMESTAMP, '0');
+# Emails, Logfile and Profiles are required, but are installed by com_ra_tools

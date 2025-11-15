@@ -10,5 +10,5 @@ DROP TABLE IF EXISTS `#__ra_mail_recipients`;
 DROP TABLE IF EXISTS `#__ra_mail_shots`;
 DROP TABLE IF EXISTS `#__ra_mail_subscriptions`;
 DROP TABLE IF EXISTS `#__ra_mail_subscriptions_audit`;
-# Logfile may be required for other components
+# Emails, Logfile and Profiles are used, but are installed by com_ra_tools
 
