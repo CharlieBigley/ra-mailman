@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.2.0
+ * @version    4.5.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -9,6 +9,7 @@
  * 01/01/24 CB use ContentHelper->getActions
  * 17/02/25 CB set up $this->user from getCurrentUser
  * 20/03/25 CB Return to Dashboard
+ * 27/08/25 CB Help
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\View\Profiles;
@@ -77,6 +78,9 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
     protected function addToolbar() {
         // Suppress menu side panel
         Factory::getApplication()->input->set('hidemainmenu', true);
+        // Set sidebar action
+        Sidebar::setAction('index.php?option=com_ra_mailman&view=profiles');
+
         $state = $this->get('State');
         $canDo = ContentHelper::getActions('com_ra_mailman');
 
@@ -136,6 +140,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
                 ->task('')
                 ->onclick('return false')
                 ->listCheck(false);
+
         // 17/06/23 - does not work
         /*
           $toolbar->standardButton('back')
@@ -161,9 +166,8 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         }
 
         ToolbarHelper::cancel('profiles.cancel', 'Return to Dashboard');
-
-        // Set sidebar action
-        Sidebar::setAction('index.php?option=com_ra_mailman&view=profiles');
+        $help_url = 'https://docs.stokeandnewcastleramblers.org.uk/mail-manager.html?view=article&id=441:mm-02-5-users&catid=34';
+        ToolbarHelper::help('', false, $help_url);
     }
 
     /**
