@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.2.0
+ * @version    4.5.7
  * @package    com_Ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2024 Charlie Bigley
@@ -13,8 +13,8 @@
  * 22/10/24 CB add addition image MIME types
  * 04/11/24 CB use id derived from getIdentity instead of getUser
  * 12/02/25 CB don't use getIdentity
- *
  * 17/02/25 CB reinstate parent::store
+ * 18/10/25 CB allow text/comma-separated-values
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Table;
@@ -64,7 +64,7 @@ class MailshotTable extends Table implements VersionableTableInterface, Taggable
     public function __construct(DatabaseDriver $db) {
         $this->typeAlias = 'com_ra_mailman.mailshot';
         $this->image_path = JPATH_ROOT . '/images/com_ra_mailman/';
-        $this->okMIMETypes = 'image/jpeg,image/bmp,image/png,application/pdf,text/plain,text/csv';
+        $this->okMIMETypes = 'image/jpeg,image/bmp,image/png,application/pdf,text/plain,text/csv,text/comma-separated-values';
 
         parent::__construct('#__ra_mail_shots', 'id', $db);
         $this->setColumnAlias('published', 'state');
