@@ -34,10 +34,17 @@ $response = $objUserHelper->processFile();
 // Redirect as appropriate
 if ($response === true) {
     if ($this->processing == '0') {
+// if(($objUserHelper->subscription_count>0) or ($objUserHelper->$users_required->0)) {
         echo 'If you continue, updates will be applied to the database.<br>';
         if ($this->method_id == '3') {
             $count = $this->toolsHelper->getValue('SELECT COUNT(id) FROM #__users');
             $message = 'Total number of existing Users=' . $count . '<br>';
+
+            $sql = 'SELECT COUNT(id) FROM #__ra_mail_subscriptions ';
+            $sql .= 'WHERE list_id=' . $this->list_id;
+            $count = $this->toolsHelper->getValue($sql);
+            $message .= 'Total number of existing Subscriptions to this list=' . $count . '<br>';
+
             $message .= 'Existing members not present on this file will be ';
             $members_leave = ComponentHelper::getParams('com_ra_mailman')->get('members_leave');
             if ($members_leave == 'B') {
