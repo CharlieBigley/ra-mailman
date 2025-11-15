@@ -1,14 +1,17 @@
 <?php
 
 /**
- * @package     com_ra_mailman
- * @version     4.1.10
+ * @version    4.1.11
+ * @package    com_ra_mailman
  * @copyright   Copyright (C) 2020. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  * @author      Charlie Bigley <webmaster@bigley.me.uk>
  *              Actual processing is carried out in site/helpers/UserHelper.php
  * 05/12/22 CB Created from com ramblers
+ * 14/07/25 CB allow checking of file format
+ * 27/07/25 CB abbreviated name
  */
+use Joomla\CMS\Component\ComponentHelper;
 use \Joomla\CMS\HTML\HTMLHelper;
 
 // No direct access
@@ -40,10 +43,12 @@ Processing of the data file is in two stages:
                 echo '<div class="control-group"><div class="control-label">';
                 echo $this->form->getLabel('data_type');
                 echo '</div>' . PHP_EOL;
+
                 echo '<div class="controls">';
                 echo $this->form->getInput('data_type');
                 echo '</div></div>' . PHP_EOL;
 
+                echo $this->form->renderField('validation_type') . PHP_EOL;
                 echo $this->form->renderField('mail_list') . PHP_EOL;
                 echo $this->form->renderField('processing') . PHP_EOL;
                 ?>
@@ -68,4 +73,11 @@ Processing of the data file is in two stages:
     <div id="validation-form-failed" data-backend-detail="dataload" data-message="<?php echo $this->escape(JText::_('JGLOBAL_VALIDATION_FORM_FAILED')); ?>">
     </div>
 </form>
-
+<?php
+$abbreviate_name = ComponentHelper::getParams('com_ra_mailman')->get('abbreviate_name', 'Y');
+if ($abbreviate_name == 'Y') {
+    echo 'Profile name will be abbreviated<br>';
+} else {
+    echo 'Profile name will not be abbreviated, but will be the same as the real name<br>';
+}
+?>
