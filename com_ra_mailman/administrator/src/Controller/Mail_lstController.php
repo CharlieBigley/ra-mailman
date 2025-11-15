@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.4.5
+ * @version    4.6.0
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -16,6 +16,9 @@
  * 02/05/25 CB showSubscribers - show username via link from subscription record
  * 21/05/25 CB show Status by colour in showSubscribers
  * 10/06/25 CB export - sequence by email
+ * 16/09/25 CB showSubscribers - sequence by email
+ * 16/10/25 CB remove diagnostic display
+ * 20/10/25 CB delete Import Reports
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Controller;
@@ -47,8 +50,8 @@ class Mail_lstController extends FormController {
     protected $list_id;
     protected $db;
     protected $objApp;
-    protected $objHelper;
-    protected $objMailHelper;
+    protected $toolsHelper;
+    protected $mailHelper;
     protected $query;
     protected $view_list = 'mail_lsts';
 
@@ -56,9 +59,9 @@ class Mail_lstController extends FormController {
 //        die('Mail_lstController');
         parent::__construct($config, $factory);
         $this->db = Factory::getDbo();
-        $this->objHelper = new ToolsHelper;
+        $this->toolsHelper = new ToolsHelper;
         $this->objApp = Factory::getApplication();
-        $this->objMailHelper = new Mailhelper;
+        $this->mailHelper = new Mailhelper;
         $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
         $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
     }
@@ -82,14 +85,10 @@ class Mail_lstController extends FormController {
                 $this->setRedirect(Route::_('index.php?option=com_ra_mailman&view=mail_lsts')); //. $this->view_list . $this->getRedirectToListAppend(), false));
             } else {
                 $list_id = $cid[0];
-                Factory::getApplication()->enqueueMessage('deleting ' . $list_id, 'info');
-                //$this->setRedirect(Route::_('index.php?option=com_ra_mailman&view=mail_lst&layout=statistics&list_id=' . $cid[0]));
-                //             $this->setRedirect('index.php?option=com_ra_mailman&view=mail_lst&layout=statistics&list_id=' . $list_id);
-                //             return;
             }
         }
 
-        $description = $this->objMailHelper->getDescription($list_id);
+        $description = $this->mailHelper->getDescription($list_id);
         echo '<h2>List ' . $description . '</h2>';
         if ($list_id == 0) {
             return;
@@ -97,36 +96,42 @@ class Mail_lstController extends FormController {
         echo 'There are other records present for this list:<br>';
 
         echo '<ul>';
-        $count = $this->objMailHelper->countMailshots($list_id);
+        $count = $this->mailHelper->countMailshots($list_id);
         echo '<li>' . $count . ' mailshots</li>';
 
         $sql = 'SELECT COUNT(*) ';
         $sql .= 'FROM  `#__ra_mail_recipients` AS mr ';
         $sql .= 'INNER JOIN `#__ra_mail_shots` as ms ON ms.id = mr.mailshot_id ';
         $sql .= 'WHERE ms.mail_list_id=' . $list_id;
-        $count = $this->objHelper->getValue($sql . ' AND state=1');
+        $count = $this->toolsHelper->getValue($sql . ' AND state=1');
         echo '<li>Details of the ' . $count . ' recipients</li>';
 
         $sql = 'SELECT COUNT(*) ';
         $sql .= 'FROM  `#__ra_mail_subscriptions` ';
         $sql .= 'WHERE list_id=' . $list_id;
-        $count = $this->objHelper->getValue($sql . ' AND state=1');
+        $count = $this->toolsHelper->getValue($sql . ' AND state=1');
         echo '<li>' . $count . ' active subscribers</li>';
 
         $sql = 'SELECT COUNT(*) ';
         $sql .= 'FROM  `#__ra_mail_subscriptions` ';
         $sql .= 'WHERE list_id=' . $list_id;
-        $count = $this->objHelper->getValue($sql . ' AND state=0');
+        $count = $this->toolsHelper->getValue($sql . ' AND state=0');
         echo '<li>' . $count . ' inactive subscribers</li>';
 
         $sql = 'SELECT COUNT(*) ';
         $sql .= 'FROM  `#__ra_mail_subscriptions_audit` AS a ';
         $sql .= 'INNER JOIN `#__ra_mail_subscriptions` as ms ON ms.id = a.object_id ';
         $sql .= 'WHERE ms.list_id=' . $list_id;
+        $count = $this->toolsHelper->getValue($sql);
+        echo '<li>' . $count . ' records detailing how and when they subscribed.</li>';
+
+        $sql = 'SELECT COUNT(*) ';
+        $sql .= 'FROM  `#__ra_import_reports` ';
+        $sql .= 'WHERE list_id=' . $list_id;
 //echo $sql;
 //return;
-        $count = $this->objHelper->getValue($sql);
-        echo '<li>' . $count . ' records detailing how and when they subscribed.</li>';
+        $count = $this->toolsHelper->getValue($sql);
+        echo '<li>' . $count . ' Import reports.</li>';
 
         echo '</ul>';
         echo 'If you delete this Mail list, all these associated records will also be irrevocably lost. If the numbers are significant, ';
@@ -137,7 +142,7 @@ class Mail_lstController extends FormController {
         echo 'and this is kept securely for possible evidentiary purposes.<br>';
 
         $target = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.purge&list_id=' . $list_id;
-        echo $this->objHelper->buildButton($target, 'Confirm delete', False, 'red');
+        echo $this->toolsHelper->buildButton($target, 'Confirm delete', False, 'red');
     }
 
     public function export() {
@@ -146,9 +151,9 @@ class Mail_lstController extends FormController {
         if ($id == 0) {
             Factory::getApplication()->enqueueMessage('List not found', 'error');
         } else {
-            $sql = "SELECT l.group_code, l.name AS list_name, ";
-            $sql .= "u.id, u.name, u.email, ";
-            $sql .= "p.home_group ";
+            $sql = 'SELECT l.group_code, l.name AS list_name, ';
+            $sql .= 'u.id, u.name, u.email, ';
+            $sql .= 'p.home_group ';
             $sql .= 'FROM  `#__ra_mail_lists` AS l ';
             $sql .= 'INNER JOIN #__ra_mail_subscriptions AS s on s.list_id = l.id ';
             $sql .= 'INNER JOIN `#__users` AS u on u.id = s.user_id ';
@@ -160,7 +165,7 @@ class Mail_lstController extends FormController {
             $sql .= ' ORDER BY u.email';
 //        echo $sql;
             $count = 0;
-            $rows = $this->objHelper->getRows($sql);
+            $rows = $this->toolsHelper->getRows($sql);
             foreach ($rows as $row) {
                 if ($count == 0) {
                     echo '<h2>Subscribers for ' . $row->group_code . ' ' . $row->list_name . '</h2>';
@@ -172,7 +177,7 @@ class Mail_lstController extends FormController {
             echo '<br>';
         }
         $target = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.edit&id=' . $id;
-        echo $this->objHelper->backButton($target);
+        echo $this->toolsHelper->backButton($target);
     }
 
     public function prime() {
@@ -189,7 +194,7 @@ class Mail_lstController extends FormController {
             $this->setPrime($id, $group_code);
         } else {
             $sql = 'UPDATE `#__ra_mail_lists` SET group_primary=NULL WHERE id=' . $id;
-            $this->objHelper->executeCommand($sql);
+            $this->toolsHelper->executeCommand($sql);
         }
 
 //        Factory::getApplication()->enqueueMessage('Save: id=' . $id . ', list_id=' . $list_id, 'comment');
@@ -201,7 +206,7 @@ class Mail_lstController extends FormController {
         if (!$canDo->get('core.delete')) {
             throw new \Exception('Access not permitted', 401);
         }
-        $list_id = $this->objApp->input->getInt('list_id');
+        $list_id = $this->objApp->input->getInt('list_id', 0);
         if ($list_id == 0) {
             return;
         }
@@ -209,34 +214,37 @@ class Mail_lstController extends FormController {
         $sql = 'SELECT a.id FROM  `#__ra_mail_subscriptions_audit` AS a ';
         $sql .= 'INNER JOIN `#__ra_mail_subscriptions` as ms ON ms.id = a.object_id ';
         $sql .= 'WHERE ms.list_id=' . $list_id;
-        $rows = $this->objHelper->getRows($sql);
+        $rows = $this->toolsHelper->getRows($sql);
         foreach ($rows as $row) {
             $sql = 'DELETE FROM  `#__ra_mail_subscriptions_audit` WHERE id=' . $row->id;
-            //           echo "$sql<br>"; //$this->objHelper->executeCommand($sql);
-            $this->objHelper->executeCommand($sql);
+            //           echo "$sql<br>"; //$this->toolsHelper->executeCommand($sql);
+            $this->toolsHelper->executeCommand($sql);
         }
+
+        $sql = 'DELETE FROM  `#__ra_import_reports` ';
+        $sql .= 'WHERE list_id=' . $list_id;
+        $this->toolsHelper->executeCommand($sql);
 
         $sql = 'DELETE FROM  `#__ra_mail_subscriptions` ';
         $sql .= 'WHERE list_id=' . $list_id;
-        $this->objHelper->executeCommand($sql);
+        $this->toolsHelper->executeCommand($sql);
 
         $sql = 'SELECT mr.id FROM  `#__ra_mail_recipients` AS mr ';
         $sql .= 'INNER JOIN `#__ra_mail_shots` as ms ON ms.id = mr.mailshot_id ';
         $sql .= 'WHERE ms.mail_list_id=' . $list_id;
-        $rows = $this->objHelper->getRows($sql);
+        $rows = $this->toolsHelper->getRows($sql);
         foreach ($rows as $row) {
-            $sql = 'DELETE FROM  `#__ra_mail_recipients` WHERE id=' . $row->$id;
-            $this->objHelper->executeCommand($sql);
+            $sql = 'DELETE FROM  `#__ra_mail_recipients` WHERE id=' . (INT) $row->$id;
+            $this->toolsHelper->executeCommand($sql);
         }
         $sql = 'DELETE FROM  `#__ra_mail_shots` ';
         $sql .= 'WHERE mail_list_id=' . $list_id;
-        $this->objHelper->executeCommand($sql);
+        $this->toolsHelper->executeCommand($sql);
 
         $sql = 'DELETE FROM  `#__ra_mail_lists` ';
         $sql .= 'WHERE id=' . $list_id;
-        $this->objHelper->executeCommand($sql);
-
-        //       die();
+        $this->toolsHelper->executeCommand($sql);
+        Factory::getApplication()->enqueueMessage('List ' . $list_id . ' and the associated records have been deleted', 'info');
         $this->setRedirect('index.php?option=com_ra_mailman&view=mail_lsts');
     }
 
@@ -262,7 +270,7 @@ class Mail_lstController extends FormController {
             $sql .= 'LEFT JOIN `#__users` AS u on u.id = l.owner_id ';
             $sql .= 'WHERE l.id=' . $id . ' ';
             $sql .= 'AND s.state=1 ';
-            $item = $this->objHelper->getItem($sql);
+            $item = $this->toolsHelper->getItem($sql);
             //   if (JDEBUG) {
             //       Factory::getApplication()->enqueueMessage('old=' . $item->owner_id, 'Comment');
             //   }
@@ -272,13 +280,13 @@ class Mail_lstController extends FormController {
                     Factory::getApplication()->enqueueMessage('Unsubscribing ' . $id . ', ' . $item->owner_id . ',3,2,0', 'Comment');
                 }
                 if ($item->owner_id > 0) {
-                    $this->objMailHelper->updateSubscription($id, $item->owner_id, 3, 2, 0);
+                    $this->mailHelper->updateSubscription($id, $item->owner_id, 3, 2, 0);
                 }
                 $sql = 'SELECT name FROM `#__users` WHERE id=' . $new_owner_id;
-                $new_owner_name = $this->objHelper->getValue($sql);
+                $new_owner_name = $this->toolsHelper->getValue($sql);
 //                Factory::getApplication()->enqueueMessage('new_owner_id=' . $new_owner_id . ', ' . $new_owner_name, 'Comment');
 //                Factory::getApplication()->enqueueMessage('Subscribing ' . $id . ', ' . $item->owner_id . ',3,2,1', 'Comment');
-                $this->objMailHelper->updateSubscription($id, $new_owner_id, 3, 2, 1);
+                $this->mailHelper->updateSubscription($id, $new_owner_id, 3, 2, 1);
                 $message = 'Owner updated ';
                 if ($item->name > '') {
                     $message .= 'from ' . $item->name;
@@ -295,13 +303,12 @@ class Mail_lstController extends FormController {
                 $sql .= 'AND p.home_group = "' . $item->group_code . '" ';
 //                die($sql);
                 /*
-                  $rows = $this->objMailHelper->getRows($sql);
+                  $rows = $this->mailHelper->getRows($sql);
                  */
             }
         }
 //        Factory::getApplication()->enqueueMessage('mail list controller saving record: id=' . $id . ',' . $new_owner_id, 'comment');
         $return = parent::save($key, $urlVar);
-//        $return = false;
 
         return $return;
     }
@@ -309,10 +316,10 @@ class Mail_lstController extends FormController {
     private function setPrime($id, $group_code) {
         // Check that no other mailing list for this group is already set as prime group
         $sql = 'SELECT id FROM `#__ra_mail_lists` where group_primary ="' . $group_code . '"';
-        $prime_id = (int) $this->objHelper->getValue($sql);
+        $prime_id = (int) $this->toolsHelper->getValue($sql);
         if (($prime_id > 0) AND ($prime_id != $id)) {
             // another mailing list for this group already set as primary
-            $new_name = $this->objHelper->getValue("SELECT name FROM `#__ra_mail_lists` WHERE id=" . $prime_id);
+            $new_name = $this->toolsHelper->getValue("SELECT name FROM `#__ra_mail_lists` WHERE id=" . $prime_id);
             Factory::getApplication()->enqueueMessage($new_name . ' is already set as primary list for ' . $group_code, 'Error');
             return false;
         } else {
@@ -320,10 +327,10 @@ class Mail_lstController extends FormController {
             if (JDEBUG) {
                 Factory::getApplication()->enqueueMessage($sql, 'notice');
             }
-            $result = $this->objHelper->executeCommand($sql);
+            $result = $this->toolsHelper->executeCommand($sql);
             // Confirm the update has worked
             $sql = 'SELECT id FROM `#__ra_mail_lists` where group_primary ="' . $group_code . '"';
-            $prime_id = (int) $this->objHelper->getValue($sql);
+            $prime_id = (int) $this->toolsHelper->getValue($sql);
             if ($prime_id != $id) {
                 Factory::getApplication()->enqueueMessage('Unable to set' . $list_name . ' as primary list', 'Info');
                 return false;
@@ -340,7 +347,7 @@ class Mail_lstController extends FormController {
         ToolBarHelper::title('Ramblers MailMan');
 //      Show link that allows page to be printed
         $target = "administrator/index.php?option=com_ra_mailman&task=mail_lst.showAuditAll&list_id=" . $list_id;
-        echo $this->objHelper->showPrint($target);
+        echo $this->toolsHelper->showPrint($target);
 
         $sql = "SELECT date_format(a.created,'%d/%m/%y') as 'Date', ";
         $sql .= "time_format(a.created,'%H:%i') as 'Time', ";
@@ -353,8 +360,8 @@ class Mail_lstController extends FormController {
         $sql .= "INNER JOIN `#__users` AS member ON member.id = s.user_id ";
         $sql .= "where s.list_id=" . $list_id . " ORDER BY a.created DESC";
 //        Factory::getApplication()->enqueueMessage('sql=' . $sql, 'notice');
-        $rows = $this->objHelper->getRows($sql);
-        echo '<h2>Audit records for ' . $this->objMailHelper->getDescription($list_id) . '</h2>';
+        $rows = $this->toolsHelper->getRows($sql);
+        echo '<h2>Audit records for ' . $this->mailHelper->getDescription($list_id) . '</h2>';
         $objTable = new ToolsTable;
         $objTable->add_header("Date,Time,Member,Field,Old value,New value,Update by,IP address");
 
@@ -372,13 +379,13 @@ class Mail_lstController extends FormController {
         }
         $objTable->generate_table();
         $target = 'administrator/index.php?option=com_ra_mailman&view=mail_lsts';
-        echo $this->objHelper->backButton($target);
+        echo $this->toolsHelper->backButton($target);
     }
 
     public function showAuditSingle() {
 // Shows audit details for given subscription
 // First check user is a Super-User
-        if (!$this->objHelper->isSuperuser()) {
+        if (!$this->toolsHelper->isSuperuser()) {
             Factory::getApplication()->enqueueMessage('Invalid access', 'notice');
             $target = 'administrator/index.php?option=com_ra_tools&view=dashboard';
             $this->setRedirect(Route::_($target, false));
@@ -388,12 +395,12 @@ class Mail_lstController extends FormController {
         $user_id = (int) $this->objApp->input->getCmd('user_id', '');
 //      Show link that allows page to be printed
         $target = "administrator/index.php?option=com_ra_mailman&task=mail_lst.showAuditSingle&list_id=" . $list_id;
-        echo $this->objHelper->showPrint($target);
+        echo $this->toolsHelper->showPrint($target);
 
         echo '<h3>Updates to Subscription</h3>';
-        echo "<h4>List: " . $this->objMailHelper->getDescription($list_id) . '</h4>';
+        echo "<h4>List: " . $this->mailHelper->getDescription($list_id) . '</h4>';
         $sql = 'SELECT name from `#__users` WHERE id=' . $user_id;
-        $username = $this->objHelper->getValue($sql);
+        $username = $this->toolsHelper->getValue($sql);
         echo "User: " . $username . '<br>';
 
         $sql = "SELECT date_format(a.created,'%d/%m/%y') as 'Date', ";
@@ -408,7 +415,7 @@ class Mail_lstController extends FormController {
         $sql .= 'WHERE s.id=' . $id;
         $sql .= ' ORDER BY a.created DESC';
 //        echo $sql;
-        $rows = $this->objHelper->getRows($sql);
+        $rows = $this->toolsHelper->getRows($sql);
         $objTable = new ToolsTable;
         $objTable->add_header("Date,Time,Group,List,Field,Old value,New value,IP address"); // Update by,
 
@@ -427,11 +434,11 @@ class Mail_lstController extends FormController {
         }
         $objTable->generate_table();
 
-//        echo $this->objHelper->rows . ' Lists<br>';
+//        echo $this->toolsHelper->rows . ' Lists<br>';
 //
         $target = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.showLists';
         $target .= '&user_id=' . $user_id . '&list_id=' . $list_id;
-        echo $this->objHelper->backButton($target);
+        echo $this->toolsHelper->backButton($target);
     }
 
     public function showAuthors() {
@@ -442,12 +449,12 @@ class Mail_lstController extends FormController {
         ToolBarHelper::title('Ramblers MailMan');
 //      Show link that allows page to be printed
         $target = "administrator/index.php?option=com_ra_mailman&task=mail_lst.showAuthors&list_id=" . $list_id;
-        echo $this->objHelper->showPrint($target);
+        echo $this->toolsHelper->showPrint($target);
 
-        $description = $this->objMailHelper->getDescription($list_id);
+        $description = $this->mailHelper->getDescription($list_id);
         $sql_count = 'SELECT COUNT(id) FROM #__ra_mail_subscriptions_audit WHERE object_id=';
 
-        echo '<h2>Authors for ' . $this->objMailHelper->getDescription($list_id) . '</h2>';
+        echo '<h2>Authors for ' . $this->mailHelper->getDescription($list_id) . '</h2>';
         $sql = "SELECT ";
         $sql .= "u.id, u.name AS 'User', u.email, ";
         $sql .= "p.home_group, ";
@@ -465,7 +472,7 @@ class Mail_lstController extends FormController {
         $sql .= ' AND record_type=2';
         $sql .= ' ORDER BY s.state DESC, u.name';
 //        echo $sql;
-        $rows = $this->objHelper->getRows($sql);
+        $rows = $this->toolsHelper->getRows($sql);
 
         $objTable = new ToolsTable;
         $objTable->add_header("User,email,Group,Method,Created,Last Updated,Updated by,Expires,IP address,Status");
@@ -478,13 +485,13 @@ class Mail_lstController extends FormController {
             $objTable->add_item($row->home_group);
             $objTable->add_item($row->Method);
             $objTable->add_item($row->created);
-            $count = $this->objHelper->getValue($sql_count . $row->id);
+            $count = $this->toolsHelper->getValue($sql_count . $row->id);
             if ($count == 0) {
                 $objTable->add_item($row->modified);
             } else {
                 $target = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.showAuditSingle&id=' . $row->subscription_id;
                 $target .= '&list_id=' . $list_id;
-                $objTable->add_item($this->objHelper->buildLink($target, $row->modified));
+                $objTable->add_item($this->toolsHelper->buildLink($target, $row->modified));
             }
             $objTable->add_item($row->UpdatedBy);
             $objTable->add_item($row->expiry_date);
@@ -505,14 +512,14 @@ class Mail_lstController extends FormController {
         echo '<br>';
 
         $target = 'administrator/index.php?option=com_ra_mailman&view=mail_lsts';
-        echo $this->objHelper->backButton($target);
+        echo $this->toolsHelper->backButton($target);
     }
 
     public function showLists() {
         // shows all mail-list for the given User
         //
         // First check user is a Super-User
-        if (!$this->objHelper->isSuperuser()) {
+        if (!$this->toolsHelper->isSuperuser()) {
             Factory::getApplication()->enqueueMessage('Invalid access', 'notice');
             $target = 'administrator/index.php?option=com_ra_tools&view=dashboard';
             $this->setRedirect(JRoute::_($target, false));
@@ -528,10 +535,10 @@ class Mail_lstController extends FormController {
 //      Show link that allows page to be printed
         $target = "administrator/index.php?option=com_ra_mailman&task=mail_lst.showAuditSingle";
         $target .= '&list_id=' . $list_id . '&user_id=' . $user_id;
-        echo $this->objHelper->showPrint($target);
+        echo $this->toolsHelper->showPrint($target);
 
         $sql = 'SELECT name from `#__users` WHERE id=' . $user_id;
-        $row = $this->objHelper->getItem($sql);
+        $row = $this->toolsHelper->getItem($sql);
         echo "<h4>Lists for " . $row->name . '</h4>';
         $sql = "SELECT ";
         $sql .= "a.id, a.modified, a.ip_address,";
@@ -546,7 +553,7 @@ class Mail_lstController extends FormController {
         $sql .= 'WHERE a.user_id=' . $user_id;
         $sql .= ' ORDER BY l.group_code, l.name, Status';
 //        echo $sql;
-        $rows = $this->objHelper->getRows($sql);
+        $rows = $this->toolsHelper->getRows($sql);
 
         $objTable = new ToolsTable;
         $objTable->add_header("Group,List, Type,Method,Last updated,IP address,Status,id,Token");
@@ -561,21 +568,21 @@ class Mail_lstController extends FormController {
             } else {
                 $target = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.showAuditSingle';
                 $target .= '&list_id=' . $list_id . '&user_id=' . $user_id . '&id=' . $row->id;
-                $objTable->add_item($this->objHelper->buildLink($target, $row->modified));
+                $objTable->add_item($this->toolsHelper->buildLink($target, $row->modified));
             }
             $objTable->add_item($row->ip_address);
             $objTable->add_item($row->Status);
             $objTable->add_item($row->id);
-            $token = $this->objMailHelper->encode($row->id, 0);
+            $token = $this->mailHelper->encode($row->id, 0);
             $objTable->add_item($token);
             $objTable->generate_line();
         }
         $objTable->generate_table();
 
-        echo $this->objHelper->rows . ' Lists<br>';
+        echo $this->toolsHelper->rows . ' Lists<br>';
         $target = "administrator/index.php?option=com_ra_mailman&view=subscriptions";
         $target .= '&list_id=' . $list_id;
-        echo $this->objHelper->backButton($target);
+        echo $this->toolsHelper->backButton($target);
     }
 
     public function showUserLists() {
@@ -599,11 +606,11 @@ class Mail_lstController extends FormController {
         $query->leftJoin($db->qn('#__ra_mail_access') . ' AS `ma` ON ma.id = s.record_type');
         $query->where($db->qn('s.user_id') . ' = ' . $user_id);
         $query->order('a.group_code, a.name');
-        $mailshots = $this->objHelper->getRows($query);
+        $mailshots = $this->toolsHelper->getRows($query);
         Factory::getApplication()->enqueueMessage('Q=' . $query, 'notice');
         $username = Factory::getUser($user_id)->get('username');
         echo '<h2>Mailing Lists for User ' . $username;
-        if ($this->objHelper->isSuperuser()) {
+        if ($this->toolsHelper->isSuperuser()) {
             echo " ($user_id)";
         }
         echo '</h2>';
@@ -630,13 +637,65 @@ class Mail_lstController extends FormController {
             $sql .= 'INNER JOIN `#__ra_mail_lists` AS l ON l.id = a.mail_list_id ';
             $sql .= 'INNER JOIN #__ra_mail_subscriptions AS s ON s.list_id = l.id ';
             $sql .= 'WHERE s.user_id=' . $user_id;
-            $last_sent = $this->objHelper->getValue($sql);
+            $last_sent = $this->toolsHelper->getValue($sql);
             $objTable->add_item(HTMLHelper::_('date', $last_sent, 'd-M-y'));
             $objTable->generate_line();
         }
         $objTable->generate_table();
         $back = 'administrator/index.php?option=com_ra_mailman&view=profiles';
-        echo $this->objHelper->backButton($back);
+        echo $this->toolsHelper->backButton($back);
+    }
+
+    public function showOutstanding() {
+        ToolBarHelper::title('Oustanding emails');
+        if (!$this->toolsHelper->isSuperuser()) {
+            Factory::getApplication()->enqueueMessage('Invalid access', 'notice');
+            $target = 'administrator/index.php?option=com_ra_mailman&view=mail_list';
+            $this->setRedirect(JRoute::_($target, false));
+            return;
+        }
+        $mailshot_id = (int) $this->objApp->input->getCmd('id', '0');
+        if ($mailshot_id == 0) {
+            Factory::getApplication()->enqueueMessage('List not found', 'error');
+        } else {
+            $sql = 'SELECT l.id, l.group_code, l.name, l.emails_outstanding,  m.title ';
+            $sql .= 'FROM #__ra_mail_lists AS l ';
+            $sql .= 'INNER JOIN #__ra_mail_shots AS m ';
+            $sql .= 'WHERE m.id=' . $mailshot_id;
+
+            $item = $this->toolsHelper->getItem($sql);
+            $emails_outstanding = $item->emails_outstanding;
+            echo '<p><b>List</b> ' . $item->group_code . '/' . $item->name . '</p>';
+            echo '<p><b>Mailshot</b> ' . $item->title . '</p>';
+
+            //          $last_mailshot = $this->mailHelper->lastMailshot($id);
+            $subscribers = $this->mailHelper->getSubscribers($mailshot_id, 'Y');
+            $actually_outstanding = count($subscribers);
+            if (count($subscribers) == 0) {
+                echo '<p><b>' . $emails_outstanding . '</b> emails outstanding</p>';
+            } else {
+                echo '<p><b>' . $actually_outstanding . '</b> emails outstanding</p>';
+                $count = 0;
+                $objTable = new ToolsTable;
+
+                $objTable->add_header('Email,Name,User id');
+                foreach ($subscribers as $row) {
+                    $count++;
+
+                    $objTable->add_item($row->email);
+                    $objTable->add_item($row->User);
+                    $objTable->add_item($row->user_id);
+                    $objTable->generate_line();
+                }
+                $objTable->generate_table();
+                if ($count !== $emails_outstanding) {
+                    echo '<p>Count updated from ' . $emails_outstanding . ' to ' . $count . '</p>';
+                    $this->mailHelper->updateOutstanding($item->id, $count);
+                }
+            }
+            $back = 'administrator/index.php?option=com_ra_mailman&task=reports.recentMailshots';
+            echo $this->toolsHelper->backButton($back);
+        }
     }
 
     public function showSubscribers() {
@@ -644,7 +703,7 @@ class Mail_lstController extends FormController {
         // Could also invoke showLists for each User, but this would complicated where @back@ should return to
         //
         // First check user is a Super-User
-        if (!$this->objHelper->isSuperuser()) {
+        if (!$this->toolsHelper->isSuperuser()) {
             Factory::getApplication()->enqueueMessage('Invalid access', 'notice');
             $target = 'index.php?option=com_ra_tools&view=dashboard';
             $this->setRedirect(Route::_($target, false));
@@ -655,7 +714,7 @@ class Mail_lstController extends FormController {
 //       ToolbarHelper::cancel($back, 'Back');
         $list_id = $this->objApp->input->getCmd('list_id', '');
         $author = $this->objApp->input->getCmd('author', 'N');
-        $description = $this->objMailHelper->getDescription($list_id);
+        $description = $this->mailHelper->getDescription($list_id);
         $sql_count = 'SELECT COUNT(id) FROM #__ra_mail_subscriptions_audit WHERE object_id=';
 
         $target_info = 'administrator/index.php?option=com_ra_mailman&task=subscription.showDetails';
@@ -664,7 +723,7 @@ class Mail_lstController extends FormController {
 
 //      Show link that allows page to be printed
         $target = "index.php?option=com_ra_mailman&task=mail_lst.showSubscribers&list_id=" . $list_id;
-        echo $this->objHelper->showPrint($target);
+        echo $this->toolsHelper->showPrint($target);
         echo '<h4>';
         if ($author == 'Y') {
             echo 'Authors';
@@ -674,12 +733,14 @@ class Mail_lstController extends FormController {
         echo " for " . $description . '</h4>';
 
         // Check whether to show email addresses
-        if ($this->objHelper->isSuperuser()) {
+        if ($this->toolsHelper->isSuperuser()) {
             $showEmail = true;
             $table_headings = 'User,email,Group,Access,Created,Last Updated,Expires,Reminder,Status,';
+            $sort = ' ORDER BY s.state DESC, u.email';
         } else {
             $showEmail = false;
             $table_headings = 'User,Group,Access,Created,Last Updated';
+            $sort = ' ORDER BY s.state DESC, u.name';
         }
         $sql = "SELECT ";
         $sql .= "u.id, p.preferred_name, u.email, u.requireReset, ";
@@ -700,9 +761,9 @@ class Mail_lstController extends FormController {
             $sql .= ' AND s.record_type=2 ';
         }
         $sql .= 'AND s.list_id=' . $list_id;
-        $sql .= ' ORDER BY s.state DESC, u.name';
-        //        echo $sql;
-        $rows = $this->objHelper->getRows($sql);
+        $sql .= $sort;
+//        echo $sql;
+        $rows = $this->toolsHelper->getRows($sql);
 
         $objTable = new ToolsTable;
         $objTable->add_header($table_headings);
@@ -722,13 +783,13 @@ class Mail_lstController extends FormController {
             $objTable->add_item($row->created);
             $details = '';
             // See if audit records exist
-            $count = $this->objHelper->getValue($sql_count . $row->id);
+            $count = $this->toolsHelper->getValue($sql_count . $row->id);
             if ($count == 0) {
                 $details = $row->modified;
             } else {
                 $target = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.showAuditSingle&id=' . $row->subscription_id;
                 $target .= '&list_id=' . $list_id;
-                $details = $this->objHelper->buildLink($target, $row->modified);
+                $details = $this->toolsHelper->buildLink($target, $row->modified);
             }
             if ($row->UpdatedBy != '') {
                 $details .= '<br>' . $row->UpdatedBy;
@@ -744,7 +805,7 @@ class Mail_lstController extends FormController {
                     $status = '<p style="color:red">' . $row->Status . '</p>';
                 }
                 $objTable->add_item($status);
-                $objTable->add_item($this->objHelper->buildlink($target_info . $row->subscription_id, '<i class="icon-info"></i>'));
+                $objTable->add_item($this->toolsHelper->buildlink($target_info . $row->subscription_id, '<i class="icon-info"></i>'));
             }
             if ($row->state == 1) {
                 $count_active++;
@@ -760,7 +821,7 @@ class Mail_lstController extends FormController {
         }
         echo '<br>';
 
-        echo $this->objHelper->backButton($back);
+        echo $this->toolsHelper->backButton($back);
     }
 
     public function subscribe() {
@@ -769,8 +830,8 @@ class Mail_lstController extends FormController {
         $user_id = $this->objApp->input->getInt('user_id', '');
         $callback = $this->objApp->input->getCmd('callback', 'user_select');
 //        Factory::getApplication()->enqueueMessage("Updating list=$list_id, user=$user_id, record_type=$record_type", 'notice');
-        $this->objMailHelper->subscribe($list_id, $user_id, $record_type, 2);
-        Factory::getApplication()->enqueueMessage($this->objMailHelper->message, 'notice');
+        $this->mailHelper->subscribe($list_id, $user_id, $record_type, 2);
+        Factory::getApplication()->enqueueMessage($this->mailHelper->message, 'notice');
         $target = 'index.php?option=com_ra_mailman&view=' . $callback;
         $target .= '&record_type=' . $record_type . '&list_id=' . $list_id;
         if ($callback == 'list_select') {
@@ -788,8 +849,8 @@ class Mail_lstController extends FormController {
             $message = 'Invalid parameters:' . $list_id . ', ' . $user_id . ', ' . $record_type;
             Factory::getApplication()->enqueueMessage($message, 'error');
         } else {
-            $result = $this->objMailHelper->unsubscribe($list_id, $user_id, 2);
-            Factory::getApplication()->enqueueMessage($this->objMailHelper->message, 'notice');
+            $result = $this->mailHelper->unsubscribe($list_id, $user_id, 2);
+            Factory::getApplication()->enqueueMessage($this->mailHelper->message, 'notice');
         }
         $target = 'index.php?option=com_ra_mailman&view=' . $callback;
         $target .= '&record_type=' . $record_type . '&list_id=' . $list_id;

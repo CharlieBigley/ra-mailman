@@ -108,8 +108,6 @@ class Import_reportsController extends AdminController {
     }
 
     public function showErrors() {
-        $sql = 'Delete FROM j5_ra_import_reports where id<99';
-        $this->toolsHelper->executeCommand($sql);
         $id = $this->app->input->getInt('id', '0');
         ToolBarHelper::title('Import Report');
         $this->showDetails($id);

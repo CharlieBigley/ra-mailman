@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.4.0
+ * @version    4.5.8
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -18,6 +18,9 @@
  * 12/02/25 CB set up $this->user from Factory::getApplication()->getSession()->get('user')
  * 21/02/25 CB only show first 516 chars of body, fix callback for showIndividualMailshots
  * 01/06/25 CB show final_message, not body
+ * 08/08/25 CB new send
+ * 12/10/25 CB correct display of user name in showIndividualMailshots
+ * 14/11/25 CB callback to recipients
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Controller;
@@ -65,7 +68,7 @@ class MailshotController extends FormController {
 
     public function apply($key = null, $urlVar = null) {
         // does not seem to be invoked
-        //die('apply invoked');
+        die('apply invoked');
         $return = parent::apply($key, $urlVar);
         // Get the parameters passed as part of the URL
         $app = Factory::getApplication();
@@ -115,13 +118,14 @@ class MailshotController extends FormController {
     }
 
     public function saveContinue($key = null, $urlVar = null) {
+        Factory::getApplication()->enqueueMessage('saveContinue', 'info');
         $return = parent::save($key, $urlVar);
         // Get the parameters passed as part of the URL
         $app = Factory::getApplication();
         $id = $app->input->getInt('id', '1');
         $list_id = $app->input->getInt('list_id', '0');
         // Redirect back to edit form
-        $target = 'index.php?option=com_ra_mailman&view=mailshot&layout=edit';
+        $target = 'index.php?option=com_ra_mailman&task=mailshot.edit';
         $target .= '&id=' . $id . '&list_id=' . $list_id;
         $this->setRedirect(Route::_($target, false));
         return $return;
@@ -132,7 +136,6 @@ class MailshotController extends FormController {
 
         $objApp = Factory::getApplication();
         $user_id = (int) $objApp->input->getCmd('user_id', 0);
-        $user = Factory::getApplication()->getIdentity($user_id);
         ToolBarHelper::title('Ramblers MailMan');
         $db = Factory::getDbo();
         $query = $db->getQuery(true);
@@ -158,8 +161,8 @@ class MailshotController extends FormController {
 
         $mailshots = $this->objHelper->getRows($query);
 //        Factory::getApplication()->enqueueMessage('Q=' . $query, 'notice');
-        $details = '<h2>Messages sent to User ' . $user_id;
-        $details .= ', ' . $user->name . '</h2>';
+        $details = '<h2>Mailshots sent to User ' . $user_id;
+        $details .= ', ' . $this->objHelper->lookupUser($user_id) . '</h2>';
         echo $details;
         $objTable = new ToolsTable;
         $objTable->add_header("Details,List,Title,Message,File,Author");
@@ -190,7 +193,7 @@ class MailshotController extends FormController {
     public function showMailshot() {
         $objApp = Factory::getApplication();
         $id = $objApp->input->getInt('id', 0);
-        $callback = $objApp->input->getWord('callback', 0);
+        $callback = $objApp->input->getWord('callback', '');
         $user_id = $objApp->input->getInt('user_id', 0);
 
         $db = Factory::getDbo();
@@ -243,9 +246,9 @@ class MailshotController extends FormController {
                 echo $this->objHelper->buildLink('../images/com_ra_mailman/' . $file, $file, true) . '<br> ';
             }
         }
-        echo "<p>Created by " . $item->creator . ' at ' . HTMLHelper::_('date', $item->created, 'h:i D d/m/y');
-        if (($item->modified_by > 0) AND (HTMLHelper::_('date', $item->created, 'h:i D d/m/y') != HTMLHelper::_('date', $item->modified, 'h:i D d/m/y'))) {
-            echo ', Updated by ' . $item->updater . ' at ' . HTMLHelper::_('date', $item->created, 'h:i D d/m/y');
+        echo "<p>Created by " . $item->creator . ' at ' . HTMLHelper::_('date', $item->created, 'H:i D d/m/y');
+        if (($item->modified_by > 0) AND (HTMLHelper::_('date', $item->created, 'H:i D d/m/y') != HTMLHelper::_('date', $item->modified, 'H:i D d/m/y'))) {
+            echo ', Updated by ' . $item->updater . ' at ' . HTMLHelper::_('date', $item->created, 'H:i D d/m/y');
         }
         echo "</p>";
         echo "<p>";
@@ -253,6 +256,8 @@ class MailshotController extends FormController {
 //        echo JSITE_BASE . '<br>';
         if ($callback == 'individual') {
             $back = 'administrator/index.php?option=com_ra_mailman&task=mailshot.showIndividualMailshots&user_id=' . $user_id;
+        } elseif ($callback == 'recipients') {
+            $back = 'administrator/index.php?option=com_ra_mailman&view=recipients';
         } else {
             $back = 'administrator/index.php?option=com_ra_mailman&view=mailshots&list_id=' . $item->mail_list_id;
         }
@@ -354,15 +359,14 @@ class MailshotController extends FormController {
     public function send() {
         $objApp = Factory::getApplication();
         $mailshot_id = (int) $objApp->input->getCmd('mailshot_id', '');
+        $total = $objApp->input->getInt('total', '0');
 
         $user_id = $this->user->id;
         if ($user_id == 0) {
             Factory::getApplication()->enqueueMessage('You must log in to access this function', 'error');
         } else {
-//            Factory::getApplication()->enqueueMessage('User=' . $user_id, 'notice');
-            $objMailHelper = new Mailhelper;
-            $objMailHelper->send($mailshot_id);
-            Factory::getApplication()->enqueueMessage($objMailHelper->message, 'notice');
+            $mailHelper = new Mailhelper;
+            $mailHelper->send($mailshot_id, $total);
         }
 
         $this->setRedirect('index.php?option=com_ra_mailman&view=mail_lsts');
