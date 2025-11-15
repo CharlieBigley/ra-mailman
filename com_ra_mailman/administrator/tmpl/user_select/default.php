@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.2.0
+ * @version    4.5.7
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -8,6 +8,9 @@
  * 22/12/23 CB remove spurious character
  * 2/02/25 CB eliminate use of getIdentity
  * 20/03/25 CB If selecting Authors, label button as Enable, not Subscribe
+ * 23/06/25 CB use sub_query
+ * 03/09/25 CB Breadcrumbs
+ * 16/10/25 CB ass mail_lists to breadcrumbs (same as Back button)
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -33,6 +36,10 @@ $listDirn = $this->state->get('list.direction');
 $objMailHelper = new Mailhelper;
 $self = 'index.php?option=com_ra_mailman&view=user_select';
 $self .= '&record_type=' . $this->record_type . '&list_id=' . $this->list_id;
+$breadcrumbs = $this->objHelper->buildLink('administrator/index.php', 'Home Dashboard');
+$breadcrumbs .= '>' . $this->objHelper->buildLink('administrator/index.php?option=com_ra_tools&view=dashboard', 'RA Dashboard');
+$breadcrumbs .= '>' . $this->objHelper->buildLink('administrator/index.php?option=com_ra_mailman&view=mail_lsts', 'Mail lists');
+echo $breadcrumbs;
 ?>
 
 <form action="<?php echo Route::_($self); ?>" method="post"
@@ -84,18 +91,19 @@ $self .= '&record_type=' . $this->record_type . '&list_id=' . $this->list_id;
                             $owner_id = $objMailHelper->getOwner_id($this->list_id);
                             // See if this user is currently subscribed
                             $target = '/administrator/index.php?option=com_ra_mailman&task=mail_lst.';
-                            if ($subscription = $objMailHelper->getSubscription($this->list_id, $item->id)) {
-                                if ($subscription->state == 0) {
+                            if ($item->sub_id) {
+//                         if ($subscription = $objMailHelper->getSubscription($this->list_id, $item->id)) {
+                                if ($item->state == 0) {
                                     $label = 'Re-instate';
                                     $access = '';
                                     $method = '';
                                     $colour = 'sunrise';
                                 } else {
                                     // This user is subscribed to this list
-                                    if ($this->record_type > $subscription->record_type) {
+                                    if ($this->record_type > $item->record_type) {
                                         $label = 'Upgrade';
                                         $colour = 'orange';
-                                    } elseif ($this->record_type < $subscription->record_type) {
+                                    } elseif ($this->record_type < $item->record_type) {
                                         $label = 'Downgrade';
                                         $colour = 'mud';
                                     } else {
@@ -103,8 +111,8 @@ $self .= '&record_type=' . $this->record_type . '&list_id=' . $this->list_id;
                                         $action = 'un';
                                         $colour = 'rosycheeks';
                                     }
-                                    $access = $subscription->Access;
-                                    $method = $subscription->Method;
+                                    $access = $item->Access;
+                                    $method = $item->Method;
                                     $check_visible = false;
                                 }
                             } else {
