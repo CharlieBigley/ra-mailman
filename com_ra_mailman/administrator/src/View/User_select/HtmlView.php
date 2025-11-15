@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.2.2
+ * @version    4.5.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -9,6 +9,7 @@
  * 08/08/23 CB if home_group_only, include message in title
  * 07/09/23 CB as button with number of records
  * 09/03/25 CB direct "subscribe" to user_select Controller, not Subscriptions
+ * 25/08/25 CB Help
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\View\User_select;
@@ -108,6 +109,8 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
     protected function addToolbar() {
         // Suppress menu side panel
         Factory::getApplication()->input->set('hidemainmenu', true);
+        // Set sidebar action
+        Sidebar::setAction('index.php?option=com_ra_mailman&view=user_select');
         $title = 'Select ';
         if ($this->record_type == 1) {
             $title .= 'Subscribers';
@@ -128,9 +131,8 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
                 ->onclick('return false')
                 ->listCheck(false);
         ToolbarHelper::cancel('user_select.cancel', 'Cancel');
-
-        // Set sidebar action
-        Sidebar::setAction('index.php?option=com_ra_mailman&view=user_select');
+        $help_url = 'https://docs.stokeandnewcastleramblers.org.uk/mail-manager.html?view=article&id=425:mm-02-2-2-authors&catid=34';
+        ToolbarHelper::help('', false, $help_url);
     }
 
     /**
