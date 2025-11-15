@@ -19,19 +19,50 @@
         <field name="website"
                 type="text"
                 label="Website address" 
-                description="Used when creating links in emails for Renewals etc" 
+                description="Used when creating links in emails for Unsubscribe, Renewals etc" 
                 required="true"
                 hint="https://xxxramblers.org.uk"/>
+        <field name="max_online_send"
+                type="text"
+                filter="int"
+                label="Max Emails to send on-line" 
+                description="Maximum number of Emails to send immediately" 
+                required="true"
+                default="100"/>    
+        <field name="max_emails"
+                type="text"
+                filter="int"
+                label="Max Emails" 
+                description="Maximum number of Emails to send at one time in batch mode" 
+                required="true"
+                default="100"/>    
+            <field name="mailshot_send_message" 
+               filter="safehtml" 
+               type="textarea" 
+               default="Mailshot has been logged for dispatch and will be processed shortly" 
+               label="Send message" 
+               required="true"
+               description="Text to be shown when waiting for off-line processing" />
+    </fieldset>
+    <fieldset name="dataload" label="Dataload">
+        <field name="max_errors"
+                type="text"
+                filter="int"
+                label="Max Errors" 
+                description="Maximum error when loading Users from a file" 
+                required="true"
+                default="50"/> 
         <field
-            name="members_leave"
+            name="abbreviate_name"
             type="radio"
-            label="When members leave:"
-            description="Action to be taken when they drop off Insight file"
-            default="B"
+            label="Abbreviate name:"
+            description="Action to be taken when importing members from Insight file"
+            default="N"
             >
-            <option value="D">Delete all records, including for subscription, audit and mailshots sent</option>
-            <option value="B">Block their User records</option>
-        </field>        
+            <option value="N">Create preferred name with Surname in full</option>
+            <option value="Y">Create preferred name with first initial of Surname</option>
+        </field>  
+      
         <field name="email_domain"
                 type="text"
                 label="Email domain" 
@@ -46,25 +77,33 @@
         <field
             name="colour_header" 
             type="color" 
-            default="#eee" 
             format="rgba"
             label="Header colour"
+            default="rgba(155, 200, 171, 0.5)"
             description="Background colour of the email header"
         />
         <field
             name="colour_body" 
             type="color" 
-            default="#eee" 
             format="rgba"
             label="Body colour"
+            default="rgba(155, 200, 171, 0.1)"
             description="Background colour of the email body"
+        />        
+        <field
+            name="colour_event" 
+            type="color" 
+            format="rgba"
+            label="Event colour"
+            default="rgba(156,200,171, 0.2)"
+            description="Background colour for any link to a bookable Event"
         />
         <field
             name="colour_footer" 
             type="color" 
-            default="#eee" 
             format="rgba"
             label="Footer colour"
+            default="rgba(155, 200, 171, 1)"
             description="Background colour of the email footer"
         />
     </fieldset>
@@ -73,11 +112,11 @@
         <field name="logo_file"
                 type="text"
                 label="Logo" 
-                description="name of logo to be displayed at top of each email" 
+                description="Name of the file to be displayed at top of each email" 
                 required="true"
                 hint="Logo.png"/>
         <field name="note2" type="note" label="You can specify here the size at which it should be displayed."/>
-                <field name="height"
+        <field name="height"
                maxlength="3" 
                filter="safehtml" 
                type="text" 
@@ -129,7 +168,7 @@
                step="2" 
                type="integer" 
                default="28" 
-               label="Notify inteval (days)" 
+               label="Notify interval (days)" 
                description="How long in advace a reminder should be sent" 
                hint="28"/>
     </fieldset> 
