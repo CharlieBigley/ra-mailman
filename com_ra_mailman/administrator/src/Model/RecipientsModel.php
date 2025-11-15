@@ -7,6 +7,7 @@
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  * 11/11/2025 CB created
+ * 15/11/25 CB correct filter by mail list
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -140,7 +141,7 @@ class RecipientsModel extends ListModel {
             $this->list_id = '0';
         }
         if ($this->list_id !== '0') {
-            $query->where('a.mail_list_id = ' . $this->list_id);
+            $query->where('m.mail_list_id = ' . $this->list_id);
         }
         // Search for this word
         $searchWord = $this->getState('filter.search');
