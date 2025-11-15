@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.2.0
+ * @version    4.5.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -14,6 +14,8 @@
  * 12/02/25 CB set up $this->user from getCurrentUser
  * 20/03/25 CB Return to Dashboard
  * 02/05/25 CN change page heading
+ * 14/07/25 CB remove "Check" button
+ * 25/08/25 CB Help
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\View\Dataload;
@@ -96,6 +98,9 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         }
 
         ToolbarHelper::cancel('dataload.cancel', 'Return to Dashboard');
+
+        $help_url = 'https://docs.stokeandnewcastleramblers.org.uk/mail-manager.html?view=article&id=492:mm-04-3&catid=34';
+        ToolbarHelper::help('', false, $help_url);
     }
 
 }
