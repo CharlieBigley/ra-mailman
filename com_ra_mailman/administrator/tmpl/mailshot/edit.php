@@ -1,12 +1,13 @@
 <?php
 /**
- * @version    4.0.0
+ * @version    4.5.5
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  * 12/09/24 CB display existing attachments, add hidden field attachment_hidden
  * 22/10/24 CB use separate tab for publishing
+ * 03/10/25 CB add field event_id
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -18,7 +19,7 @@ use \Joomla\CMS\Router\Route;
 use \Joomla\CMS\Language\Text;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
-$objHelper = new ToolsHelper;
+$toolsHelper = new ToolsHelper;
 $wa = $this->document->getWebAssetManager();
 $wa->useScript('keepalive')
         ->useScript('form.validate');
@@ -38,10 +39,19 @@ $self .= '&id=' . (int) $this->item->id . '&list_id=' . (int) $this->list_id;
     <div class="row-fluid">
         <div class="span10 form-horizontal">
             <fieldset class="adminform">
-                <legend><?php //echo 'Mailshot';                 ?></legend>
+                <legend><?php //echo 'Mailshot';                        ?></legend>
                 <?php
                 echo $this->form->renderField('title');
                 echo $this->form->renderField('body');
+                if (ToolsHelper::isInstalled('com_ra_events')) {
+                    $sql = 'SELECT COUNT(id) FROM `#__ra_events` ';
+                    $sql .= 'WHERE bookable=1 AND DATEDIFF(event_date, CURRENT_DATE)>0 ';
+                    $sql .= 'AND api_site_id IS NULL ';
+                    $count = $toolsHelper->getValue($sql);
+                    if ($count > 0) {
+                        echo $this->form->renderField('event_id');
+                    }
+                }
                 echo $this->form->renderField('attached_file');
 
                 echo $this->form->renderField('attachment');
@@ -50,7 +60,7 @@ $self .= '&id=' . (int) $this->item->id . '&list_id=' . (int) $this->list_id;
                     foreach ((array) $this->item->attachment as $fileSingle) {
                         if (!is_array($fileSingle)) {
                             $target = Route::_(Uri::root() . 'images/com_ra_mailman' . DIRECTORY_SEPARATOR . $fileSingle);
-                            echo $objHelper->buildLink($target, $fileSingle, true);
+                            echo $toolsHelper->buildLink($target, $fileSingle, true);
                         }
                     }
                 }
@@ -75,8 +85,8 @@ $self .= '&id=' . (int) $this->item->id . '&list_id=' . (int) $this->list_id;
     echo $this->form->renderField('record_type');
     echo HTMLHelper::_('uitab.endTab');
     ?>
-    <input type="hidden" name="jform[id]" value="<?php //echo $this->item->id;               ?>" />
-    <input type="hidden" name="jform[state]" value="<?php //echo $this->item->state;                 ?>" />
+    <input type="hidden" name="jform[id]" value="<?php //echo $this->item->id;                      ?>" />
+    <input type="hidden" name="jform[state]" value="<?php //echo $this->item->state;                        ?>" />
 
     <?php echo HTMLHelper::_('uitab.endTabSet'); ?>
 
