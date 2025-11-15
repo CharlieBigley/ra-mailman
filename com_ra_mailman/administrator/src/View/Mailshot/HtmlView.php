@@ -1,13 +1,14 @@
 <?php
 
 /**
- * @version    4.2.0
+ * @version    4.5.8
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  * 01/01/24 CB use ContentHelper->getActions
  * 13/02/25 CB set up $this->user from getCurrentUser
+ * 14/11/25 CB warning if checked out
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\View\Mailshot;
@@ -112,6 +113,8 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
 
         if (isset($this->item->checked_out)) {
             $checkedOut = !($this->item->checked_out == 0 || $this->item->checked_out == $this->user->get('id'));
+            $user_name = $this->objHelper->lookupUser($this->item->checked_out);
+            Factory::getApplication()->enqueueMessage('This item is currently checked out by ' . $user_name, 'warning');
         } else {
             $checkedOut = false;
         }
@@ -129,8 +132,8 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         // If not checked out, can save the item.
         if (!$checkedOut && ($canDo->get('core.edit') || ($canDo->get('core.create')))) {
             // 11/08/23 apply acts the save as does Save&Return
-            //           ToolbarHelper::apply('mailshot.apply', 'JTOOLBAR_APPLY');
-            ToolbarHelper::apply('mailshot.saveContinue', 'Save and continue');
+//           ToolbarHelper::apply('mailshot.saveContinue', 'JTOOLBAR_APPLY');
+//            ToolbarHelper::apply('mailshot.apply', 'Save and continue');
             ToolbarHelper::save('mailshot.save', 'JTOOLBAR_SAVE');  //Works as Save&Return
         }
 
