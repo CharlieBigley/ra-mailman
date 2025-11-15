@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.4.5
+ * @version    4.1.10
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -12,7 +12,7 @@
  * and if confirmation is given, it invokes itself again with a different mode to make the database changes.
  *
  * The actual processing logic is encapsulated in UserHelper.
- * 26/05/25 CB import report
+ * 14/07/25 CB support for template check
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\View\Process;
@@ -46,7 +46,6 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
     public function display($tpl = null) {
         $data = Factory::getApplication()->getUserState('com_ra_mailman.edit.upload.data', array());
         $uploadPath = JPATH_ROOT . '/images/com_ra_mailman/';
-        //$uploadPath = '../images/com_ra_mailman/';
         $this->user = $this->getCurrentUser();
         $this->method_id = $data['data_type'];
         $this->processing = $data['processing'];
