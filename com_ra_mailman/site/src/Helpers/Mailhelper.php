@@ -3,7 +3,7 @@
 /**
  * Contains functions used in the back end and the front end
  *
- * @version    4.4.5
+ * @version    4.5.6
  * @package    com_ra_mailman
  * @author     charles
 
@@ -21,6 +21,11 @@
  * 30/04/25 CB add logo to email header
  * 19/05/25 CB remove logo, check for duplicates when sending, don't append sender's email address
  * 31/05/25 CB show colours, warning if no subscribers, correct restart, X on behalf of Y
+ * 17/06/25 CB revert X on behalf of Y (fix error in buildMessage)
+ * 06/08/25 CB warning if email logging is active
+ * 19/08/25 CB make user_id public
+ * 03/10/25 CB optionally include invitation to an event
+ * 06/10/25 CB add colour for event link
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Helpers;
@@ -30,6 +35,7 @@ use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Object\CMSObject;
 use Joomla\CMS\Uri\Uri;
+use Ramblers\Component\Ra_events\Site\Helpers\BookingHelper;
 use Ramblers\Component\Ra_mailman\Site\Helpers\SubscriptionHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsTable;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
@@ -37,13 +43,18 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 class Mailhelper {
 
     public $message;
+    public $messages;
+    private $bookingHelper;
+    private $event_id;
+    private $footer;
     protected $db;
     protected $attachments;
+    protected $email_log_level;
     protected $email_title;
     protected $objApp;
     protected $toolsHelper;
     protected $query;
-    protected $user_id;
+    public $user_id;
 
     public function __construct() {
         $this->db = Factory::getDbo();
@@ -65,16 +76,16 @@ class Mailhelper {
 //
 // Get details of the Mailing list
         $sql = "SELECT "
-                . "m.title, m.body, m.attachment, "
+                . "m.title, m.body, m.attachment, m.event_id, "
                 . "m.created, m.modified, m.modified_by, m.date_sent, "
                 . "l.name, l.owner_id, l.footer, owner.email AS 'reply_to',"
                 . "p.preferred_name AS 'Owner', modifier.preferred_name as 'Modifier', creator.name as 'Creator' ";
         $sql .= 'FROM #__ra_mail_shots AS m ';
         $sql .= 'INNER JOIN `#__ra_mail_lists` AS l ON l.id = m.mail_list_id ';
-        $sql .= 'LEFT JOIN #__ra_profiles AS owner ON owner.id = l.owner_id ';
+        $sql .= 'LEFT JOIN #__users AS owner ON owner.id = l.owner_id ';
         $sql .= 'LEFT JOIN #__ra_profiles AS modifier ON modifier.id = m.modified_by ';
         $sql .= 'LEFT JOIN #__users AS creator ON creator.id = m.created_by ';
-        $sql .= 'LEFT JOIN #__ra_profiles AS p ON owner.id = p.id ';
+        $sql .= 'LEFT JOIN #__ra_profiles AS p ON p.id = l.owner_id ';
         $sql .= 'WHERE m.id=' . $mailshot_id;
 
         $db = Factory::getDbo();
@@ -82,6 +93,11 @@ class Mailhelper {
         $db->setQuery($sql);
         $db->execute();
         $item = $db->loadObject();
+        // Save the Event id in case an invitation link is required
+        $this->event_id = $item->event_id;
+        if ($item->event_id > 0) {
+            $this->bookingHelper = new BookingHelper;
+        }
         if ((is_null($item->modified_by) OR ($item->modified_by == 0))) {
             $date = HTMLHelper::_('date', $item->created, 'd M y');
             $signatory = $item->Creator;
@@ -119,7 +135,6 @@ class Mailhelper {
             $header .= '<a  href="' . $params->get('website') . '" >';
             $header .= "<img src='data:image/jpeg;base64,{$encoded}' style='float: ";
             $header .= $logo_align . ";'";
-            // $body .= '<div style="float: ' . 'left' . ';">';
             $header .= ' height="' . $params->get('height') . 'px" width="' . $params->get('width') . 'px">';
             $header .= "</a>";
         } else {
@@ -134,7 +149,7 @@ class Mailhelper {
 
         $mailshot_body .= $item->body;
 
-        $mailshot_body .= 'From ';
+        $mailshot_body .= '<br>From ';
         if ($signatory == $item->Owner) {
             $mailshot_body .= $item->Owner;
         } else {
@@ -144,7 +159,6 @@ class Mailhelper {
             }
         }
 
-        $mailshot_body .= '</div>';
 
         // Save any attachment for the email (used in $this->send)
         if ($item->attachment != '') {
@@ -162,16 +176,17 @@ class Mailhelper {
                 }
             }
         }
-
+        // N.B. final </div> not included in case an event invitation is required
 // Footer comprises the footer from the list, plus the owners email address, plus the component footer
-        $footer = '<div style="background: ' . $params->get('colour_footer', 'rgba(20, 141, 168, 0.8)');
-        $footer .= '; border-radius: 5%; padding: 10px;">';
-        $footer .= $item->footer . '<br>';
-        $footer .= $params->get('email_footer');
+// Created without closing tag so the unsibscribe link can be added
+        $this->footer = '<div style="background: ' . $params->get('colour_footer', 'rgba(20, 141, 168, 0.8)');
+        $this->footer .= '; padding: 10px;  border-radius: 5%; ">';
+        $this->footer .= $item->footer . '<br>';
+        $this->footer .= $params->get('email_footer');
+        $this->footer .= '<br>';
+        $this->footer .= 'To unsubscribe from future emails, click ';
         // N.B. final </div> not included
 
-        $mailshot_body .= $footer . '<br>';
-        $mailshot_body .= 'To unsubscribe from future emails, click ';
         return $mailshot_body;
     }
 
@@ -224,6 +239,23 @@ class Mailhelper {
         if ($author == 'Y') {
             $sql .= ' AND s.record_type=2';
         }
+        return $this->toolsHelper->getValue($sql);
+    }
+
+    public function countSubscribersOutstanding($mail_shot_id) {
+// returns the count of users currently subscribed to the given list
+        $sql = 'SELECT COUNT(u.id)  ';
+        $sql .= 'FROM #__ra_mail_shots AS m ';
+        $sql .= 'INNER JOIN `#__ra_mail_lists` AS l ON l.id = m.mail_list_id ';
+        $sql .= 'INNER JOIN #__ra_mail_subscriptions AS s ON s.list_id = l.id ';
+        $sql .= 'INNER JOIN #__users AS u ON u.id = s.user_id ';
+        $sql .= 'LEFT JOIN #__ra_mail_recipients AS mr ON mr.mailshot_id =m.id ';
+        $sql .= 'AND u.id = mr.user_id ';
+        $sql .= 'WHERE mr.id IS NULL ';
+        $sql .= 'AND m.id=' . $mail_shot_id;
+        $sql .= ' AND s.state=1';
+        $sql .= ' AND u.block=0 AND u.requireReset=0';
+        //       echo $sql;
         return $this->toolsHelper->getValue($sql);
     }
 
@@ -406,9 +438,14 @@ class Mailhelper {
         }
     }
 
-    private function getSubscribers($mailshot_id, $restart = 'N') {
+    public function getSubscribers($mailshot_id, $restart = 'N') {
 //        $this->message .= 'getSubscribers mailshot_id=' . $mailshot_id . ', ';
 // returns an array of users currently subscribed to the given list
+        if ($mailshot_id == '') {
+            echo 'Mailshot id is blank<br>';
+            Factory::getApplication()->enqueueMessage('Mailshot id is blank', 'error');
+            return;
+        }
         $sql = "SELECT s.id AS subscription_id, l.id AS list_id, ";
         $sql .= "u.id as user_id, u.name AS 'User', u.email AS 'email' ";
         $sql .= 'FROM #__ra_mail_shots AS m ';
@@ -530,17 +567,18 @@ class Mailhelper {
         // returns an object with details of the most recent mailshot for the given list
         $result = new CMSObject;
         $query = $this->db->getQuery(true);
-        $query->select('id, date_sent,processing_started,attachment');
+        $query->select('mail_list_id,id, date_sent,processing_started,attachment');
         $query->from($this->db->qn('#__ra_mail_shots'));
         $query->where('mail_list_id=' . $list_id);
         $query->order('id DESC');
         $query->setLimit('1');
-
+//        die($query);
         $this->db->setQuery($query);
         $this->db->execute();
         $item = $this->db->loadObject();
         if (is_null($item)) {
             $this->message .= 'Helper/lastMailshot: mail_list_id=' . $list_id . ' not found';
+            $result->set('mail_list_id', 0);
             $result->set('id', 0);
             $result->set('date_sent', NULL);
             $result->set('processing_started', NULL);
@@ -548,6 +586,7 @@ class Mailhelper {
             $result->set('attachment', '');
         } else {
 //          A record has been found for this list
+            $result->set('mail_list_id', $item->mail_list_id);
             $result->set('id', $item->id);
             $result->set('date_sent', $item->date_sent);
             $result->set('processing_started', $item->processing_started);
@@ -557,7 +596,7 @@ class Mailhelper {
                     //  Need to find the penultimate mailshot
                     $result->set('date', $this->lastSent($list_id));
                 } else {
-                    $result->set('date', 'Started ' . HTMLHelper::_('date', $item->processing_started, 'G:h:i d M Y'));
+                    $result->set('date', 'Started ' . HTMLHelper::_('date', $item->processing_started, 'G:H:i d M Y'));
                 }
             } else {
 
@@ -598,7 +637,7 @@ class Mailhelper {
                 if (!is_null($row->processing_started)) {
                     if (is_null($row->date_sent)) {
                         // Sending has started, has not been completed
-                        return 'Started ' . HTMLHelper::_('date', $row->processing_started, 'G:h:i d M Y');
+                        return 'Started ' . HTMLHelper::_('date', $row->processing_started, 'G:H:i d M Y');
                     } else {
                         $this->message .= $row->date_sent;
                         return HTMLHelper::_('date', $row->date_sent, 'd M Y');
@@ -650,7 +689,7 @@ class Mailhelper {
             $details .= 'Mailshots for ' . $this->lookupList($list_id) . ':<br>';
             $details .= '<ul>';
             foreach ($mailshots as $mailshot) {
-                $pretty_date = HTMLHelper::_('date', $mailshot->date_sent, 'd-M-Y h:i');
+                $pretty_date = HTMLHelper::_('date', $mailshot->date_sent, 'd-M-Y H:i');
                 $details .= '<li>' . $pretty_date . ': <b>' . $mailshot->title . '</b></li>';
             }
             $details .= '</ul>';
@@ -675,104 +714,37 @@ class Mailhelper {
         }
     }
 
-    public function send($mailshot_id) {
+    public function send($mailshot_id, $total) {
+        // Only invoked if processing carried out online
 
-//      Set up maximum time of 10 mins (should be parameter in config
-        $max = 10 * 60;
-        set_time_limit($max);
-// Compile the final message from its components
-        $mailshot_body = $this->buildMessage($mailshot_id);
-// Find the email address of the list's owner
-        $sql = 'SELECT u.email FROM #__ra_mail_shots AS ms ';
-        $sql .= 'INNER JOIN `#__ra_mail_lists` AS l ON l.id = ms.mail_list_id ';
-        $sql .= 'INNER JOIN #__users AS u ON u.id = l.owner_id ';
-        $sql .= 'WHERE ms.id=' . $mailshot_id;
-        $reply_to = $this->toolsHelper->getValue($sql);
+        $params = ComponentHelper::getParams('com_ra_tools');
+        $this->email_log_level = $params->get('email_log_level', '0');
+        // Log level -2 is solely to benchmark the overhead of sending via SMTP
+        //       if ($this->email_log_level == -2) {
+        //           Factory::getApplication()->enqueueMessage('Email logging is in Benchmark mode', 'warning');
+        //       }
+        // See if processing can be done on-line
 
-// See if the send is only part way through
-        $sql = 'SELECT processing_started, date_sent, title FROM #__ra_mail_shots ';
-        $sql .= 'WHERE id=' . $mailshot_id;
-//        echo "$sql<br>";
-        $item = $this->toolsHelper->getItem($sql);
-//        echo $item->processing_started . ' ' . $item->date_sent . '<br>';
-//       if (is_null($item->date_sent)) {
-//           echo $item->date_sent . ' date_sent is null<br>';
-//       }
-        if (is_null($item->processing_started)) {
-            Factory::getApplication()->enqueueMessage('Sending of Mailshot "' . $item->title . '" started at ' . date('d-M-Y h:i:s A'), 'notice');
-        } else {
-            Factory::getApplication()->enqueueMessage('Sending of Mailshot "' . $item->title . '" restarting ' . $item->processing_started, 'notice');
-        }
-        if ($item->date_sent > '') {
-            Factory::getApplication()->enqueueMessage('Mailshot "' . $item->title . '" was sent ' . $item->date_sent, 'error');
-            return 0;
+        $params = ComponentHelper::getParams('com_ra_mailman');
+        $max_emails = $params->get('max_emails', 100);
+        $max_online_send = $params->get('max_online_send', 100);
+
+        if ($total > $max_online_send) {
+//            Find the list id
+            $sql = 'SELECT ms.mail_list_id FROM #__ra_mail_shots AS ms ';
+            $sql .= 'WHERE ms.id=' . $mailshot_id;
+            $mail_list_id = $this->toolsHelper->getValue($sql);
+            $this->updateOutstanding($mail_list_id, $total);
+            return;
+//               $mailshot_send_message = $params->get('mailshot_send_message', 'Processing for batch job initiated');
+//               Factory::getApplication()->enqueueMessage($mailshot_send_message, 'info');
         }
 
-        if (!is_null($item->processing_started)) {
-// Send had started but not completed
-            $restart = true;
-// Only get users who have not yet received their message
-            $subscribers = $this->getSubscribers($mailshot_id, 'Y');
-        } else {
-// Save the status that processing has started
-            if (!$this->updateDate($mailshot_id, 'processing_started')) {
-                $this->message .= ', Unable to update ProcessingDate';
-                return 0;
-            }
-            $restart = false;
-// Store the final composite message
-            if (!$this->storeMessage($mailshot_id, $mailshot_body . 'Un-subscribe')) {
-                $this->message .= ', Unable to update final message';
-                return 0;
-            }
-            $subscribers = $this->getSubscribers($mailshot_id);
-            if (count($subscribers) == 0) {
-                Factory::getApplication()->enqueueMessage('No subscribers', 'warning');
-            }
-        }
-// Find the reference point for the un-subscribe link
-        $base = uri::base();
-        if (substr($base, -14, 13) == 'administrator') {
-            $target = substr($base, 0, strlen($base) - 14);
-        } else {
-            $target = $base;
-        }
-        $error_count = 0;
-        $count = 0;
-        $current_email = '';
-        foreach ($subscribers as $subscriber) {
-            // Check not already sent an email to this subscriber
-            if ($subscriber->email == $current_email) {
-                Factory::getApplication()->enqueueMessage('Duplicate message for ' . $subscriber->email, 'warning');
-            } else {
-                $current_email = $subscriber->email;
-                $token = $this->encode($subscriber->subscription_id, 0);
+        $this->sendEmails($mailshot_id);
 
-                $link = $this->toolsHelper->buildLink($target . 'index.php?option=com_ra_mailman&task=mail_lst.processEmail&token=' . $token, 'Un-subscribe');
-//            if (substr(JPATH_ROOT, 14, 6) == 'joomla') {            // Development
-//                $this->message .= ' ' . $token;
-//            }
-                $message = $mailshot_body . $link . '</div>';
-                if ($this->sendEmail($subscriber->email, $reply_to, $this->email_title, $message, $this->attachments)) {
-                    $count++;
-                } else {
-                    $error_count++;
-                }
-                $this->createRecipent($mailshot_id, $subscriber->user_id);
-            }
+        foreach ($this->messages as $message) {
+            Factory::getApplication()->enqueueMessage($message, 'info');
         }
-//        $this->message .= 'Testing ' . $count . ', user=' . $users . ', for mailshot ' . $mailshot_id . $message;
-
-
-        if ($error_count > 0) {
-            $this->message .= ' ' . $error_count . ' Errors';
-        }
-        if (!$this->updateDate($mailshot_id, 'date_sent')) {
-            $this->message .= ', Unable to update DateSent';
-            return false;
-        }
-        $this->message .= ' Mailshot ' . $this->email_title . ' sent to ' . $count . ' users ';
-        return true;
     }
 
     public function sendDraft($mailshot_id) {
@@ -825,6 +797,13 @@ class Mailhelper {
     }
 
     function sendEmail($to, $reply_to, $subject, $body, $attachments = '') {
+        $this->toolsHelper->sendEmail($to, $reply_to, $subject, $body, $attachments);
+        return;
+        ////////////////////////////////////////////////////////////////////////
+        // Log level -2 is solely to benchmark the overhead of sending via SMTP
+        if ($this->email_log_level < 0) {
+            return true;
+        }
         if ($to == '') {
             Factory::getApplication()->enqueueMessage('To address is missing', 'error');
             return 0;
@@ -894,6 +873,143 @@ class Mailhelper {
         }
     }
 
+    public function sendEmails($mailshot_id) { // before version 4.5.1, this was function send
+//      Find level of email logging
+        $params = ComponentHelper::getParams('com_ra_tools');
+        $this->email_log_level = $params->get('email_log_level', '0');
+        // Find the reference point for the un-subscribe link
+        $website_base = rtrim($params->get('website'), '/') . '/';
+//        if ($website_base == '') {
+//            $params = ComponentHelper::getParams('com_ra_mailman');
+//            $website_base = rtrim($params->get('website'), '/') . '/';
+//        }
+// Find the maximumun number of emails to be sent at one time
+        $params = ComponentHelper::getParams('com_ra_mailman');
+        $max_emails = $params->get('max_emails');
+
+// Compile the final message from its components
+        $mailshot_body = $this->buildMessage($mailshot_id);
+// Find the email address of the list's owner
+        $sql = 'SELECT l.id, u.email FROM #__ra_mail_shots AS ms ';
+        $sql .= 'INNER JOIN `#__ra_mail_lists` AS l ON l.id = ms.mail_list_id ';
+        $sql .= 'INNER JOIN #__users AS u ON u.id = l.owner_id ';
+        $sql .= 'WHERE ms.id=' . $mailshot_id;
+        $item = $this->toolsHelper->getItem($sql);
+        $reply_to = $item->email;
+        $mail_list_id = $item->id;
+
+// See if the send is only part way through
+        $sql = 'SELECT processing_started, date_sent, title FROM #__ra_mail_shots ';
+        $sql .= 'WHERE id=' . $mailshot_id;
+//        echo "$sql<br>";
+        $item = $this->toolsHelper->getItem($sql);
+        echo $item->processing_started . ' ' . $item->date_sent . '<br>';
+        if (is_null($item->date_sent)) {
+            echo $item->date_sent . ' date_sent is null<br>';
+        }
+        if ($item->date_sent > '') {
+            $this->messages[] = 'Mailshot "' . $item->title . '" was sent ' . $item->date_sent;
+            $this->updateOutstanding($mail_list_id, 0);
+            return 0;
+        }
+//      Set up maximum time of 10 mins (should be parameter in config
+        $max = 10 * 60;
+        set_time_limit($max);
+
+        if (is_null($item->processing_started)) {
+            $this->messages[] = 'Sending of Mailshot "' . $item->title . '" started at ' . date('d-M-Y H:i:s A');
+// Save the status that processing has started
+            if (!$this->updateDate($mailshot_id, 'processing_started')) {
+                $this->message .= ', Unable to update ProcessingDate';
+                return 0;
+            }
+            $restart = false;
+// Store the final composite message on the mailshot record
+            if (!$this->storeMessage($mailshot_id, $mailshot_body . 'Un-subscribe')) {
+                $this->message .= ', Unable to update final message';
+                return 0;
+            }
+            $subscribers = $this->getSubscribers($mailshot_id);
+            $count_subscribers = count($subscribers);
+            if ($count_subscribers == 0) {
+                $this->messages[] = 'No subscribers';
+            }
+        } else {
+//          Send had started but not completed
+            $message = 'Sending of Mailshot "' . $item->title . '" restarting ' . $item->processing_started;
+            $restart = true;
+// Only get users who have not yet received their message
+            $subscribers = $this->getSubscribers($mailshot_id, 'Y');
+            $count_subscribers = count($subscribers);
+            $message .= ', ' . $count_subscribers . ' users outstanding';
+            $this->messages[] = $message;
+        }
+
+        $error_count = 0;
+        $count = 0;
+        $outstanding = $count_subscribers;
+        $current_email = '';
+        foreach ($subscribers as $subscriber) {
+            $count++;
+            $outstanding--;
+//            if ($restart) {
+//                $this->messages[] = $count . ' ' . $subscriber->email;
+//            }
+            // Check not already sent an email to this subscriber
+            if ($subscriber->email == $current_email) {
+                $this->messages[] = 'Duplicate message for ' . $subscriber->email;
+            } else {
+                $message = $mailshot_body;
+                $message .= '</div>';
+                if ($this->event_id > 0) {
+                    $message .= '<div style="background: ' . $params->get('colour_body', 'rgba(20, 141, 168, 0.5)');
+                    $message .= '; padding-top: 10px; ">';
+                    $message .= $this->bookingHelper->generateInvitation($website_base, $this->event_id, $subscriber->user_id);
+                    $message .= '</div>';
+                }
+
+                $current_email = $subscriber->email;
+                $token = $this->encode($subscriber->subscription_id, 0);
+
+                $link = $this->toolsHelper->buildLink($website_base . 'index.php?option=com_ra_mailman&task=mail_lst.processEmail&token=' . $token, 'Un-subscribe');
+//                if ($count == 1) {
+//                    Factory::getApplication()->enqueueMessage('Website base is ' . $website_base, 'error');
+//                }
+//            if (substr(JPATH_ROOT, 14, 6) == 'joomla') {            // Development
+//                $this->message .= ' ' . $token;
+//            }
+
+
+                $message .= $this->footer . $link . '</div>';
+                if (!$this->sendEmail($subscriber->email, $reply_to, $this->email_title, $message, $this->attachments)) {
+                    $error_count++;
+                }
+
+                if ($outstanding % 10 == 0) {
+                    $this->updateOutstanding($mail_list_id, $outstanding);
+                }
+                $this->createRecipent($mailshot_id, $subscriber->user_id);
+                if ($count >= $max_emails) {
+                    break;
+                }
+            }
+        }
+        if ($error_count > 0) {
+            $this->message .= ' ' . $error_count . ' Errors';
+        }
+        $this->updateOutstanding($mail_list_id, $outstanding);
+        $this->messages[] = ' Mailshot ' . $this->email_title . ' sent to ' . $count . ' users ';
+        if ($outstanding == 0) {
+            if (!$this->updateDate($mailshot_id, 'date_sent')) {
+                $this->messages[] = ', Unable to update DateSent';
+                return false;
+            }
+        } else {
+            $this->messages[] = $outstanding . ' messages still outstanding';
+        }
+        return true;
+    }
+
     public function sendRenewal($user_id, $list_id = 0) {
         /*
          * Invoked from batch program renewals.php and via dashboard
@@ -960,7 +1076,7 @@ class Mailhelper {
             $body .= 'Hi ' . $row->preferred_name . '(' . $row->Recipient . ')<br>';
             $body .= '<b>List: ' . $row->group_code . ' ' . $row->List . '</b><br>';
             $body .= '<b>Owned by: ' . $owner->preferred_name . '</b><br>';
-            $body .= 'Your subscription to receive emails from MailMan, ';
+            $body .= 'Your subscription to receive emails from MailMan ';
             if ($row->days_to_go < 0) {
                 $body .= 'expired on ' . $pretty_date;
             } else {
@@ -976,7 +1092,7 @@ class Mailhelper {
             $link = $this->toolsHelper->buildLink($website_base . 'index.php?option=com_ra_mailman&task=mail_lst.processEmail&token=' . $token, 'Renew');
             $body .= 'To renew your subscription for another year please click ' . $link . '<br>';
 
-            $token = $this->encode($row->id, 2);
+            $token = $this->encode($row->id, 2);   // cancel
             $link = $this->toolsHelper->buildLink($website_base . 'index.php?option=com_ra_mailman&task=mail_lst.processEmail&token=' . $token, 'Cancel');
             $body .= 'If you want to cancel your subscription please click ' . $link . '<br>';
             $body .= '<br>';
@@ -985,7 +1101,7 @@ class Mailhelper {
                 $link = $this->toolsHelper->buildLink($website_base . 'index.php?option=com_ra_mailman&task=mail_lst.processEmail&token=' . $token, 'Renew');
                 $body .= 'To renew <b>ALL</b> your subscription for another year please click ' . $link . '<br>';
 
-                $token = $this->encode($row->id, 4);
+                $token = $this->encode($row->id, 4);   // cancel all
                 $link = $this->toolsHelper->buildLink($website_base . 'index.php?option=com_ra_mailman&task=mail_lst.processEmail&token=' . $token, 'Cancel');
                 $body .= 'If you want to cancel <b>ALL</b> your subscription please click ' . $link . '<br>';
             }
@@ -1107,7 +1223,6 @@ class Mailhelper {
 // but from the back-end, or if invoked from view list_select, it could be any user
 //
 // $record_type (from back end) could be 1=Subscription or 2=author
-
         if (JDEBUG) {
             $message = "Creating subscription for list=" . $list_id . ', user=' . $user_id;
             $message .= ", record_type=" . $record_type . ', method_id=' . $method_id;
@@ -1218,6 +1333,14 @@ class Mailhelper {
         return 0;
     }
 
+    public function updateOutstanding($maillist_id, $value) {
+        $sql = 'UPDATE #__ra_mail_lists ';
+        $sql .= 'SET emails_outstanding=' . $value;
+        $sql .= ' WHERE id=' . $maillist_id;
+        //       die($sql);
+        $this->toolsHelper->executeCommand($sql);
+    }
+
     public function updateSubscription($list_id, $user_id, $record_type, $method_id, $state) {
         /*
          * Can cancel a subscription or set one up
@@ -1275,6 +1398,7 @@ class Mailhelper {
                 $objSubscription->record_type = $record_type;
                 $objSubscription->method_id = $method_id;
                 $objSubscription->state = $state;
+                // Set expiry date to 12 months time
                 $objSubscription->bumpExpiry();
 // If enrolment is via MailChimp or Corporate feed, expiry date will be set in the class
                 $return = $objSubscription->add();

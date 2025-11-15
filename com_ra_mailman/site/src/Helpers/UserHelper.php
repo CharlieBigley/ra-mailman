@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version     4.4.0
+ * @version     4.5.2
  * @package     com_ra_mailman
  * @copyright   Copyright (C) 2020. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
@@ -14,21 +14,16 @@
  * Processing: 0 = report only
  *             1 = Update database
  *
- * 06/12/22 CB Created from com ramblers as LoadUsers
- * 13/11/23 CB link to group Registered as well as Public
- * 09/12/23 CB change validation of email, also check unique username (validEmail instead of checkEmail)
- * 25/03/24 CB don't delete from profiles_audit
- * 18/09/24 CB check for blank filename (processing of Mailchimp may not work)
- * 10/10/24 CB set up return codes from processFile
- * 28/10/24 CB check profile is not present before creating it
- * 20/10/24 CB when processing lapsed members, correct bounce date
- * 04/11/24 CB show subscription count, require rest if creating user from front end
- * 14/11/24 CB create profile; change diagnostic messages
-  16/11/24 CB blockUser and purgeUser
+ * 16/11/24 CB blockUser and purgeUser
  * 12/02/25 CB replace getIdentity with Factory::getApplication()->getSession()->get('user')
  * 14/04/25 CB trim spaces from beginning and end of input fields
  * 18/05/25 CB correct columns for names and email address
  * 26/05/25 CB import report
+ * 19/06/25 CB comment out actual removal, don't show message if user present
+ * 07/07/25 CB Receive system emails
+ * 14/07/25 CB derive reference columns for Insight Hub from column headings
+ * 27/07/25 CB abbreviate_name, check if subscription created OK
+ * 16/08/25 CB use ToolsHelper to send emila, not mailHelper
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Helpers;
@@ -58,14 +53,18 @@ class UserHelper {
     public $processing;
     public $filename;
     public $report_id;
-// These are available after processing
+// This are available after processing
     public $error;
+    public $success;
 // These variables are used internally
     public $email;
     public $name;
     public $preferred_name;
     public $user_id;
-    protected $open;
+//    protected $open;
+    protected $abbreviate_name;
+    protected $current_userid;
+    protected $home_group;
     protected $toolshelper;
     protected $objMailHelper;
     protected $error_count = 0;
@@ -78,16 +77,20 @@ class UserHelper {
     protected $record_type;
     protected $subscription_count = 0;
     protected $users_created = 0;
-    protected $users_required;
+    protected $users_required = 0;
+// These constants refer to to column numbers on the Insight file
+    protected $cEmail;
+    protected $cForename;
+    protected $cGroup;
+    protected $cSurname;
 
     public function __construct() {
-        $this->record_count = 0;
-        $this->users_created = 0;
-
 // When subscribing, always subscribe as User (rather than an Author)
         $this->record_type = 1;
         $this->objMailHelper = new Mailhelper;
         $this->toolshelper = new ToolsHelper;
+        $this->abbreviate_name = ComponentHelper::getParams('com_ra_mailman')->get('abbreviate_name', 'Y');
+        $this->current_userid = Factory::getApplication()->getSession()->get('user')->id;
     }
 
     protected function addJoomlaUser() {
@@ -156,6 +159,7 @@ class UserHelper {
     }
 
     public function checkEmail($email, $username, $group_code) {
+// 20/10/2025 This does not seem to be used
 // Returns True or an error message
         $sql = 'SELECT u.id, u.name, u.registerDate, p.home_group ';
         $sql .= 'FROM #__users AS u ';
@@ -199,16 +203,20 @@ class UserHelper {
     }
 
     private function createPreferredName() {
+        if ($this->abbreviate_name == 'N') {
+            $this->preferred_name = $this->name;
+        } else {
 // Created a default preferred_name as First name + first characters of Surname
-        $parts = explode(' ', $this->name);
-        $last = count($parts) - 1;  // in case more than 2 names given
-        $this->preferred_name = $parts[0] . ' ' . substr($parts[$last], 0, 1);
+            $parts = explode(' ', $this->name);
+            $last = count($parts) - 1;  // in case more than 2 names given
+            $this->preferred_name = $parts[0] . ' ' . substr($parts[$last], 0, 1);
+        }
     }
 
     public function createProfile() {
 //    Create a record in ra_profiles
 //      Check that record not already present
-//      should not be an existing records, but if there is, update it anyway
+//      should not be an existing record, but if there is, update it anyway
 
 
 
@@ -229,7 +237,7 @@ class UserHelper {
             if ($user->id == 0) {
                 $created = $this->user_id;
             } else {
-                $created = $user_id;
+                $created = $this->current_userid;
             }
 // Prepare the insert query.
             $db = Factory::getDbo();
@@ -300,6 +308,8 @@ class UserHelper {
          * It is used from the front-end (controllers/profile) from view profiles
          * However, if used from the back end it seems only to work the first time it is invoked
          * 23/10/23 add field sendEmail, pass array of groups rather than call linkUser
+         * 07/07/25 This does not link the new user to groups Public and Registered as expected
+
          */
 
         if ($this->name == 'Email Address') {
@@ -316,7 +326,7 @@ class UserHelper {
             "username" => $this->email,
             "password" => $password,
             "password2" => $password,
-            "sendEmail" => '1',
+            "sendEmail" => '0', // Receive system emails
             "group" => array('1', '2'), // Public & Registered
             "require_reset" => 1,
             "email" => $this->email
@@ -332,7 +342,8 @@ class UserHelper {
             return false;
         }
         $this->user_id = $user->id;
-//        $this->linkUser();
+        $this->linkUser(1);
+        $this->linkUser(6);
         Factory::getSession()->clear('user', "default");
         return true;
     }
@@ -384,13 +395,13 @@ class UserHelper {
             $this->linkUser(1);  // Public
             $this->linkUser(2);  // Registered
             if ($front_end == '1') {
-                Factory::getApplication()->enqueueMessage('Created MailMan user record ' . $user_id . ' for ' . $this->group_code . ' ' . $this->name, 'Info');
+//                Factory::getApplication()->enqueueMessage('Created MailMan user record ' . $user_id . ' for ' . $this->group_code . ' ' . $this->name, 'Info');
                 $this->sendEmail();
             }
             return true;
         }
         $this->error = 'Unable to create User record for ' . $this->group_code . ' ' . $this->name;
-        die;
+//        die;
         return false;
     }
 
@@ -421,6 +432,58 @@ class UserHelper {
         return $return;
     }
 
+    private function lookupColumns($fields) {
+
+        if (count($fields) == 1) {
+            echo '... ' . "Array has only one entry" . '<br>';
+            echo '... ' . 'Data is not comma delimited' . '<br>';
+            $this->success = false;
+//               return $this->success;
+        }
+        $pointer = 0;
+        $this->cForename = '';
+        $this->cSurname = '';
+        $this->cEmail = '';
+        $this->cGroup = '';
+        foreach ($fields as $field) {
+            if ($field == 'Forenames') {
+                $this->cForename = $pointer;
+            } elseif ($field == 'Last Name') {
+                $this->cSurname = $pointer;
+            } elseif ($field == 'Email Address') {
+                $this->cEmail = $pointer;
+            } elseif ($field == 'Group Code') {
+                $this->cGroup = $pointer;
+            }
+            $pointer++;
+        }
+
+        $error = false;
+        if ($this->cForename == '') {
+            $this->cForename = 'not found';
+            $error = true;
+        }
+        if ($this->cSurname == '') {
+            $this->cSurname = 'not found';
+            $error = true;
+        }
+        if ($this->cEmail == '') {
+            $this->cEmail = 'not found';
+            $error = true;
+        }
+        if ($this->cGroup == '') {
+            $this->cGroup = 'not found';
+            $error = true;
+        }
+        echo 'Forename<b> ' . $this->cForename . '</b>, ';
+        echo 'Surname<b> ' . $this->cSurname . '</b>, ';
+        echo 'Email<b> ' . $this->cEmail . '</b>, ';
+        echo 'Group<b> ' . $this->cGroup . '</b><br>';
+        if ($error == true) {
+            die;
+        }
+    }
+
     protected function lookupUser() {
         $this->user_id = 0;
         $sql = 'SELECT id, name FROM #__users WHERE email="' . $this->email . '"';
@@ -439,54 +502,67 @@ class UserHelper {
          * Sets up the internal fields this->name, this->email etc
          * The format of the line depends on the type of data being loaded
          */
+
+        $validation_message = '';
         switch ($this->method_id) {
-            case 3:     // Download from Insight Hub
+            case 3:     // Download from Insight Hub <<<<<<<<<<<<<<<<<<<<<<<<<<<
 // First record is just column headings
                 if ($this->record_count == 1) {
-                    echo $this->record_count . ': Ignoring header row<br>';
                     return 0;
                 } else {
+                    if ($this->record_count == 2) {
+                        echo '<b>First record:</b><br>';
+                        echo 'Forename=' . $data[$this->cForename] . '<br>';
+                        echo 'Surname=' . $data[$this->cSurname] . '<br>';
+                        echo 'Email=' . $data[$this->cEmail] . '<br>';
+                        echo 'Group=' . $data[$this->cGroup] . '<br>';
+                    }
                     $response = true;
                     $validation_message = '';
-                    $this->name = trim($data[10]) . ' ' . trim($data[11]);
-                    if ($this->name == ' ') {
+                    $this->name = trim($data[$this->cForename]) . ' ' . trim($data[$this->cSurname]);
+                    if ($this->name == '') {
                         $this->error_count++;
-                        $validation_message = '<b>Record has no name' . "</b><br>";
-                        echo '<b>Record ' . $this->record_count . ' has no name' . "</b><br>";
+                        $validation_message = '<b>Record has no name. ' . "</b><br>";
                         $response = false;
                     }
-                    $this->group_code = trim($data[25]);
-                    if (!$this->group_code = $data[25]) {
+                    $this->group_code = trim($data[$this->cGroup]);
+                    if ($this->group_code == '') {
                         $this->error_count++;
-                        echo '<b>' . $this->name . ' is in ' . $data[25] . ', not in Group ' . $this->group_code . "</b><br>";
+                        $validation_message = '<b>Record has no group_code. ' . "</b>";
                         $response = false;
                     }
-                    $this->email = trim($data[19]);
+//                    if (!$this->group_code = $data[$this->cGroup]) {
+//                        $this->error_count++;
+//                        echo '<b>' . $this->name . ' is in ' . $data[$this->cGroup] . ', not in Group ' . $this->group_code . ". </b><br>";
+//                        $response = false;
+//                    }
+                    $this->email = trim($data[$this->cEmail]);
                     if ($this->email == '') {
                         $this->error_count++;
-                        $validation_message = '<b>Record  has no email</b>, name=' . $this->name . '<br>';
-                        echo '<b>Record ' . $this->record_count . ' has no email</b>, name=' . $this->name . '<br>';
+                        $validation_message .= '<b>Record  has no email</b>, name=' . $this->name . '<br>';
                         $response = false;
+                    } else {
+                        if (!$this->validEmailFormat($this->email)) {
+                            $this->error_count++;
+                            echo "User $this->name: email address '$this->email' is considered invalid. <br>";
+                            $response = false;
+                        }
                     }
-//                   if (!$this->validEmailFormat()) {
-//                       $this->error_count++;
-//                       echo "User $this->name: email address '$this->email' is considered invalid<br>";
-//                       $response = false;
-//
                     if ($validation_message !== '') {
                         $this->error_report .= $this->record_count . ': ' . implode(',', $data) . '<br>';
-                        $this->error_report .= $validation_message . '<br>';
+                        $this->error_report .= $this->error_count . ': ' . $validation_message . '<br>';
                     }
                     return $response;
                 }
 
-            case 4:  // Mailchimp
+            case 4:  // Mailchimp  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 // First record is just column headings
                 if ($this->record_count == 1) {
                     echo $this->record_count . ': Ignoring header row<br>';
                     return 0;
                 } else {
                     $response = true;
+
                     $this->name = trim($data[1]) . ' ';
                     $this->email = trim($data[0]);
                     if ($data[2] == '') {
@@ -497,76 +573,106 @@ class UserHelper {
 
                     if (trim($this->name) == '') {
                         $this->error_count++;
-                        echo '<b>Record ' . $this->record_count . ' has no name' . "</b><br>";
+                        $validation_message .= '<b>Record ' . $this->record_count . '</b> has no name. ';
                         $response = false;
                     }
                     $this->email = trim($data[0]);
                     if ($this->email == '') {
                         $this->error_count++;
-                        echo '<b>First column (email) is blank' . "</b><br>";
+                        $validation_message .= '<b>Third column (email) is blank. ';
                         $response = false;
+                    } else {
+                        if (!$this->validEmailFormat($this->email)) {
+                            $this->error_count++;
+                            $validation_message .= $this->email . ' is considered invalid. ';
+                            $response = false;
+                        }
                     }
-                    if (!$this->validEmailFormat()) {
-                        $this->error_count++;
-                        echo "User $this->name: email address '$this->email' is considered invalid<br>";
-                        $response = false;
+                    if ($validation_message !== '') {
+                        $this->error_report .= $this->record_count . ': ' . implode(',', $data) . '<br>';
+                        $this->error_report .= $validation_message . '<br>';
                     }
                     return $response;
                 }
-            case 5:    // simple csv file
+            case 5:    // simple csv file <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
                 if ($this->record_count == 1) {
                     echo 'Ignoring header row<br>';
-                    return 0;
+                    return false;
                 } else {
-                    $return = 1;
-                    $this->group_code = $data[0];
-                    $this->name = $data[1];
-                    $this->email = $data[2];
+                    $this->group_code = trim($data[0]);
+                    $this->name = trim($data[1]);
+                    $this->email = trim($data[2]);
                     if ($this->group_code == '') {
                         $this->error_count++;
-                        echo '<b>First column (Group code) is blank' . "</b><br>";
-                        $return = 0;
+                        $validation_message .= 'First column (Group code) is blank. ';
+//                       echo '<b>First column (Group code) is blank' . "</b><br>";
+                    } else {
+// needs tools version 3.2.3
+                        if ($this->toolshelper->validGroupcode($this->group_code) === false) {
+                            $this->error_count++;
+                            $validation_message .= 'Invalid Group code ' . $this->toolshelper->error;
+//                            echo '<b>Invalid Group code</b> ' . $this->group_code . ' ';
+                        }
                     }
 
                     if ($this->name == '') {
                         $this->error_count++;
-                        $message = '<b>Second column (name) is blank</b>';
-                        $message .= ', email=' . $this->email;
-                        echo $message . "<br>";
-                        $return = 0;
+                        $validation_message .= ' Second column (name) is blank. ';
                     }
 
                     if ($this->email == '') {
                         $this->error_count++;
-                        echo '<b>Third column (email) is blank' . "</b><br>";
-                        $return = 0;
+                        $validation_message .= ' Third column (email) is blank. ';
+                    } else {
+                        if (!$this->validEmailFormat($this->email)) {
+                            $this->error_count++;
+                            $validation_message .= ' Invalid email format. ';
+                        }
                     }
-                    return $return;
-                    return $this->validEmailFormat();
+// Check the email and user name
+                    if (($this->email !== '') AND ( $this->name !== '')) {
+                        $message = $this->userExists($this->email, $this->name);
+                        if ($message !== '') {
+                            $this->error_count++;
+                            $validation_message .= $message;
+                        }
+                    }
+// Check for the correct group code
+                    if ($validation_message !== '') {
+                        $this->error_report .= $this->record_count . ': ' . implode(',', $data) . '<br>';
+                        $this->error_report .= 'Error : ' . $validation_message . '<br>';
+                        echo $this->error_report . '<br><br>';
+                        return false;
+                    }
+                    return true;
                 }
         }
     }
 
     public function processFile() {
+// Entry point for processing import file
+        $this->success = true;
 //        die(' processing = ' . $this->processing . ', filename = ' . $this->filename);
         if (JDEBUG) {
-            $diagnostic = ' processing=' . $this->processing . ', filename=' . $this->filename;
+            $diagnostic = ' processing = ' . $this->processing . ', filename = ' . $this->filename;
             Factory::getApplication()->enqueueMessage("Helper: " . $diagnostic, 'Message');
         }
+        $params = ComponentHelper::getParams('com_ra_mailman');
+        $this->max_errors = $params->get('max_errors');
         if (!file_exists($this->filename)) {
             echo $this->filename . ' not found';
             Factory::getApplication()->enqueueMessage("Helper: " . $this->filename . ' not found', 'Error');
+            $this->success = false;
             return 0;
         }
-        if (substr(JPATH_ROOT, 14, 6) == 'joomla') {
-            echo '<h4>deleting test data</h4> ';
-            $this->purgeTestData();
-        }
 
-        $sql = "Select group_code, name, record_type from `#__ra_mail_lists` "
+        $sql = "Select group_code, name, record_type, home_group_only from `#__ra_mail_lists` "
                 . "WHERE id='" . $this->list_id . "'";
         $item = $this->toolshelper->getItem($sql);
-        $this->group_code = $item->group_code;
+
+        if ($item->home_group_only == 1) {
+            $this->home_group = $item->group_code;
+        }
         $title = $item->group_code . ' ' . $item->name;
         if ($item->record_type == 'O') {
             $this->open = true;
@@ -587,27 +693,42 @@ class UserHelper {
         } elseif ($this->method_id == 5) {
             echo 'CSV';
         } else {
-            echo 'Type=' . $this->method_id . 'Not recognised';
+            echo 'Type = ' . $this->method_id . 'Not recognised';
         }
 
-        echo '<h4>List=' . $title . '<br>';
-        echo 'File=' . $this->filename . '</h4>';
+        echo '<h4>List = ' . $title . '<br>';
+        echo 'File = ' . $this->filename . '</h4>';
         $this->processRecords();
         echo '<br>' . $this->record_count . ' records read<br>';
         if ($this->error_count > 0) {
             echo "<b>$this->error_count errors</b><br>";
+            echo '<div style = "padding-left: 19px;">'; // create div with offset left margin
+            echo $this->error_report . '<br>';
+//           $target = 'administrator/index.php?option = com_ra_mailman&task = import_reports.showErrors&id = ' . $this->report_id;
+//           echo $this->toolshelper->buildLink($target, 'Report', true);
+            echo '</div>';
+            echo '<br>';
         }
         echo $this->users_required . ' Users required<br>';
         if ($this->processing == 1) {
             echo $this->users_created . ' Users created<br>';
+            echo $this->subscription_count . ' Subscriptions created<br>';
         } else {
             echo ($this->subscription_count + $this->users_required) . ' Subscriptions required<br>';
         }
         if (($this->processing == 1) AND ($this->method_id == 3)) {
             $this->processLapsers();
         }
+        if ($this->lapsed_count > 0) {
+            echo $this->lapsed_count;
+            if ($members_leave == 'B') {
+                echo ' Users Blocked<br>';
+            } else {
+                echo ' Users Purged<br>';
+            }
+        }
         $this->updateReport();
-        return true;
+        return $this->success;
     }
 
     protected function processLapsers() {
@@ -620,40 +741,44 @@ class UserHelper {
         $today = date('Y-m-d');
         $bounce_date = date('Y-m-d', strtotime($today . ' + 1 year'));
         $objSubscription = new SubscriptionHelper;
+        echo '<h4>Seeking lapsed members</h4>';
+        if ($members_leave == 'B') {
+            echo 'Blocking ';
+        } else {
+            echo 'Purging ';
+        }
+        echo ' Members registered to this list via Corporate feed<br>';
+        echo 'Expiry date before ' . $bounce_date . '<br>';
 
-//        echo '+y ' . $bounce_date . '<br>';
 // Find subscriptions with renewal date before this
         $sql = "SELECT s.id AS subscription_id, s.expiry_date, l.id AS list_id, ";
-        $sql .= "u.id as user_id, u.name AS 'User', u.email AS 'email' ";
+        $sql .= "u.id as user_id, p.preferred_name, u.email ";
         $sql .= 'FROM `#__ra_mail_lists` AS l ';
         $sql .= 'INNER JOIN #__ra_mail_subscriptions AS s ON s.list_id = l.id ';
         $sql .= 'INNER JOIN #__users AS u ON u.id = s.user_id ';
+        $sql .= 'LEFT JOIN #__ra_profiles AS p ON p.id = s.user_id ';
         $sql .= 'WHERE l.id=' . $this->list_id . ' ';
         $sql .= 'AND (datediff("' . $bounce_date . '",s.expiry_date) > 0)  ';
 //        $sql .= ' AND s.state=1';  // don't care if they have already unsubscribed
         $sql .= ' AND s.method_id=3';
         $sql .= ' ORDER BY u.id';
-        if (JDEBUG) {
-//            echo $sql . '<br>';
-            $this->toolshelper->showQuery($sql);
-        }
+//        if (JDEBUG) {
+        echo $sql . '<br>';
+        $this->toolshelper->showQuery($sql);
+//       }
 
         $rows = $this->toolshelper->getRows($sql);
         $this->lapsed_count = $this->toolshelper->rows;
         foreach ($rows as $row) {
-            $lapsed_members[] = $row->User . ',' . $row->email . '<br>';
+            $this->lapsed_members[] = $row->preferred_name . ',' . $row->email;
             if ($members_leave == 'B') {
-                $this->blockUser($row->user_id);
+//                $this->blockUser($row->user_id);
             } else {
-                $this->purgeUser($row->user_id);
+//                $this->purgeUser($row->user_id);
             }
         }
-        if ($members_leave == 'B') {
-            $app->enqueueMessage($this->toolshelper->rows . ' Users blocked', 'info');
-        } else {
-            $app->enqueueMessage($this->toolshelper->rows . ' Users Purged', 'info');
-        }
         $count = $this->toolshelper->getValue('SELECT COUNT(id) FROM #__users');
+        echo 'Total number of Users now =' . $count . '<br>';
         $app->enqueueMessage('Total number of Users now =' . $count, 'info');
     }
 
@@ -661,22 +786,52 @@ class UserHelper {
         $this->record_count = 0;
         $this->users_required = 0;
         $this->subscription_count = 0;
+        $this->new_users = [];
+        $this->new_subs = [];
+        $this->error_report = '';
         $handle = fopen($this->filename, "r");
         if ($handle == 0) {
             echo 'Unable to open ' . $this->filename . '<br>';
-            return 0;
+            $this->success = false;
+            return $this->success;
         }
+//        $this->test('Michael Mouse', 'mick@mouse.com');
+//        $this->test('Alpha Bigley', 'alpha@bigley.me.uk');
+//        $this->test('Alpha Bigley', 'al@bigley.me.uk');
+//        $this->test('Al Bigley', 'alpha@bigley.me.uk');
+//        $this->test('Betty Bigley', 'beta@bigley.me.uk');
 //        die('File ' . $this->filename . ' opened OK');
         $sql_lookup = 'SELECT id FROM #__users WHERE email="';
         while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
             $this->record_count++;
-            if (JDEBUG) {
-                echo $this->record_count . ': ';
-            }
+//            if (JDEBUG) {
+//                echo $this->record_count . ': ';
+//            }
             if ($this->record_count == 1) {
-                echo 'Ignoring header row<br>';
+                if ((is_array($data)) and (count($data) == 1)) {
+                    Factory::getApplication()->enqueueMessage("Array has only one entry", 'Error');
+                    Factory::getApplication()->enqueueMessage('Data is not comma delimited', 'Error');
+                    $this->success = false;
+                    return $this->success;
+                }
+                if (count($data) == 1) {
+                    Factory::getApplication()->enqueueMessage("Data does not seem to be an array: ", 'Error');
+                    $this->success = false;
+                    return $this->success;
+                }
+//                var_dump($data);
+//                echo '<br><br>';
+
+                if ($this->method_id == 3) {
+                    echo 'Calculating column referenced from header row<br>';
+                    $this->lookupColumns($data);
+                } else {
+                    echo 'Ignoring header row<br>';
+                }
             } elseif (substr($data[0], 0, 1) == '#') {
                 echo 'Ignoring comment ' . $data[0] . ',' . $data[1], '<br>';
+            } elseif (trim(implode('', $data)) == '') {
+                echo 'Ignoring blank line ' . $data[0] . ',' . $data[1], '<br>';
             } else {
                 /*
                  * After $this->parseLine, the following variables will have been set up:
@@ -686,7 +841,7 @@ class UserHelper {
                  */
                 if (($this->parseLine($data))) {
                     if (JDEBUG) {
-                        echo 'group=' . $this->group_code . ', name=' . $this->name . ', email=' . $this->email . "<br>";
+                        echo $this->record_count . ', group=' . $this->group_code . ', name=' . $this->name . ', email=' . $this->email . "<br>";
                     }
                     $subscription_required = false;
                     $message = '';
@@ -698,7 +853,7 @@ class UserHelper {
                         if ($this->processing == 1) {
                             $response = $this->createUserDirect();
                             if ($response) {
-                                $user_id = $this->user_id;
+                                $user_id = $this->user_id;  // As just created
                                 $message .= ', User created';
                                 if (JDEBUG) {
                                     $message .= ', id=' . $user_id;
@@ -712,98 +867,43 @@ class UserHelper {
                                 $message .= ', Error creating User ' . $this->name . '/' . $this->email;
                             }
                         }
+//                        echo $message . '<br>';
                     } else {
+//                        $message = '';
                         $message .= 'User ' . $this->name . ' exists for ' . $this->email;
                         $method = $this->objMailHelper->isSubscriber($this->list_id, $user_id);
                         if ($method == '') {
-                            $this->new_subs[] = $this->name . ',' . $this->email . '<br>';
                             $message .= ', Subscription <b>not present</b>';
                             $subscription_required = true;
-                            $this->subscription_count++;
                         } else {
-                            $message .= ', subscription exists, method=<b>' . $method . '</b>';
+//                            $message .= ', subscription exists, method=<b>' . $method . '</b>';
                             $subscription_required = false;
                         }
                     }
-
-                    if (($subscription_required) AND ($this->processing == 1)) {
-                        $this->objMailHelper->subscribe($this->list_id, $user_id, $this->record_type, $this->method_id);
-//                        echo $this->record_count . ": Subscription created OK" . '<br>';
-                        $message .= ', Subscription created';
+                    if (($subscription_required) AND ($this->processing == 0)) {
+                        $this->subscription_count++;
                     }
-                    echo $message . '<br>';
+                    if (($subscription_required) AND ($this->processing == 1)) {
+                        if ($this->objMailHelper->subscribe($this->list_id, $user_id, $this->record_type, $this->method_id)) {
+                            $message .= ', Subscription created';
+                            $this->new_subs[] = $this->name . ',' . $this->email;
+                            $this->subscription_count++;
+                        } else {
+                            $message .= ' ' . $this->objMailHelper->message;
+                        }
+                    }
+                    if ($message !== '') {
+//echo 'User ' . $this->name . ' ' . $message;
+                        echo $message . '<br>';
+                    }
                 }
             }
-//            if (($this->record_count == 30) AND (substr(JPATH_ROOT, 14, 6) == 'joomla')) {            // Development
-//                return;
-//            }
+            if ($this->error_count > $this->max_errors) {
+                Factory::getApplication()->enqueueMessage('Max error count of ' . $this->max_errors . ' exceeded', 'Error');
+                $this->success = false;
+            }
         }
         fclose($handle);
-    }
-
-    public function purgeTestData() {
-// First check user is a Super-User
-        if (!$this->toolshelper->isSuperuser()) {
-            Factory::getApplication()->enqueueMessage('Invalid access', 'error');
-            $target = 'index.php?option=com_ramblers&view=mail_lsts';
-            $this->setRedirect(Route::_($target, false));
-        }
-        /*
-          //update field created in ra_profiles
-          $sql = 'SELECT id,created,modified from #__ra_profiles';
-          $rows = $this->toolshelper->getRows($sql);
-          foreach ($rows as $row) {
-          echo $row->created . '<br>';
-          if (($row->created == '0000-00-00') OR ($row->created == '0000-00-00 00:00:00')) {
-          $this->toolshelper->executeCommand('DELETE FROM #__ra_profiles WHERE id=' . $row->id);
-          } else {
-          if (strlen($row->created) == 10) {
-          $new = $row->created . ' 00:00:00';
-          $update = 'UPDATE #__ra_profiles SET created="' . $new . '" WHERE id=' . $row->id;
-          echo "$update<br>";
-          $this->toolshelper->executeCommand($update);
-          }
-          }
-          }
-         */
-// For test
-//$start_user = 1026;  // After Andrea Parton
-//$start_subs = 54;
-// For dev
-        $start_user = 980;  // After Barry Collis
-        $start_subs = 12;
-
-// delete details of any emails sent
-        $sql = 'DELETE FROM #__ra_mail_recipients WHERE user_id>' . $start_user;
-        echo $sql . '<br>';
-        $this->toolshelper->executeCommand($sql);
-
-// Delete any subscriptions
-        $sql = 'DELETE FROM #__ra_mail_subscriptions_audit WHERE object_id>' . $start_subs;
-        echo $sql . '<br>';
-        $rows = $this->toolshelper->executeCommand($sql);
-        $sql = 'DELETE FROM #__ra_mail_subscriptions WHERE user_id>' . $start_user;
-        echo $sql . '<br>';
-        $this->toolshelper->executeCommand($sql);
-
-// delete profile audit records
-//        $sql = 'DELETE FROM #__ra_profiles_audit WHERE object_id>' . $start_user;
-//        echo $sql . '<br>';
-//        $this->toolshelper->executeCommand($sql);
-// delete the profile record itself
-        $sql = 'DELETE FROM #__ra_profiles WHERE id>' . $start_user;
-        echo $sql . '<br>';
-        $this->toolshelper->executeCommand($sql);
-
-// Delete the users
-        $sql = 'DELETE FROM #__user_usergroup_map WHERE user_id>' . $start_user;
-        echo $sql . '<br>';
-        $this->toolshelper->executeCommand($sql);
-        $sql = 'DELETE FROM #__users WHERE id>' . $start_user;
-        echo $sql . '<br>';
-        $this->toolshelper->executeCommand($sql);
-
-        echo 'Test data deleted<br>';
     }
 
     public function purgeUser($user_id) {
@@ -875,14 +975,23 @@ class UserHelper {
             $body .= 'Name <b>' . $this->name . '</b><br>';
             $body .= 'Group <b>' . $this->group_code . '</b><br>';
             $body .= 'Email <b>' . $this->email . '</b><br>';
-            $response = $this->objMailHelper->sendEmail($to, $to, $title, $body);
+            $response = $this->toolshelper->sendEmail($to, $to, $title, $body);
             if ($response) {
                 Factory::getApplication()->enqueueMessage('Notification sent to ' . $to, 'Info');
             }
         }
     }
 
-    public function test() {
+    public function test($name, $email) {
+        $message = $this->userExists($email, $name);
+        if ($message == '') {
+            echo "$email $name: valid<br>";
+        } else {
+            echo $message . '<br>';
+        }
+        echo '<br>';
+        return false;
+
         $this->list_id = 1;
         $this->processLapsers();
 
@@ -893,17 +1002,17 @@ class UserHelper {
         $new_users = implode('<br>', $this->new_users);
         $new_subs = implode('<br>', $this->new_subs);
         $lapsed_members = implode('<br>', $this->lapsed_members);
+
         /*
          * echo '<br>';
           var_dump($new_users);
           echo '<br>';
           var_dump($new_subs);
           echo '<br>';
+          var_dump($this->lapsed_members);
+          echo '<br>';
           var_dump($lapsed_members);
           echo '<br>';
-          $new_users = '';
-          $new_subs = '';
-          $lapsed_members = '';
          */
         $db = Factory::getContainer()->get(DatabaseInterface::class);
         $query = $db->getQuery(true);
@@ -920,17 +1029,59 @@ class UserHelper {
                 ->set("state=1")
                 ->where('id=' . $this->report_id);
         if ($this->processing == 1) {
-            $date = $this->modified = Factory::getDate('now', Factory::getConfig()->get('offset'))->toSql(true);
+            $date = Factory::getDate('now', Factory::getConfig()->get('offset'))->toSql(true);
             $query->set("date_completed = " . $db->quote($date));
         }
         $result = $db->setQuery($query)->execute();
     }
 
-    private function validEmailFormat() {
-        if (filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
-//            echo "Email address '$this->email' is considered valid.\n";
+    public function userExists($email, $real_name) {
+        $message = '';
+        $sql = 'SELECT name, username, email FROM #__users WHERE email="' . $email . '"';
+//       echo "$sql<br>";
+        $user1 = $this->toolshelper->getItem($sql);
+// Check if real name is already present
+        $sql = 'SELECT name, username, email FROM #__users WHERE name="' . $real_name . '"';
+        $user2 = $this->toolshelper->getItem($sql);
+
+        if (is_null($user1)) {
+            if (is_null($user2)) {
+//              echo 'email not found<br>';
+                if (is_null($user2)) {
+                    return '';
+                } else {
+
+                }
+            } else {
+                $message = $real_name . '/' . $email . ' is invalid: name ' . $real_name . ' already in use with email ' . $user2->email;
+            }
+        } else {
+//           echo 'email found for ' . $user1->name . '<br>';
+            if ($user1->name == $real_name) {
+                return '';
+            } else {
+                $message = $real_name . '/' . $email . ' is invalid: email ' . $email . ' is already in use with name  ' . $user1->name;
+            }
+        }
+        return $message;
+    }
+
+    private function validEmailFormat($value) {
+        return str_contains($value, '@');
+
+// Following code always gives false
+        if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            echo("$value is a valid email address");
+            return true;
+        } else {
+            echo("$value is not a valid email address");
+            return false;
+        }
+
+        if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
             return true;
         }
+        echo "Validating Email address: '$value' is considered invalid.\n";
         return false;
     }
 
