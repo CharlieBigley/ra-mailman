@@ -1,10 +1,11 @@
 <?php
 /**
- * @version    4.0.0
+ * @version    4.5.7
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
+ * 19/10/25 CB Breadcrumbs
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -30,8 +31,11 @@ $listDirn = $this->state->get('list.direction');
 $objMailHelper = new Mailhelper;
 $self = 'index.php?option=com_ra_mailman&view=list_select';
 $self .= '&user_id=' . $this->user_id;
+$breadcrumbs = $this->objHelper->buildLink('aindex.php', 'Main menu');
+$breadcrumbs .= '>' . $this->objHelper->buildLink('index.php?option==com_ra_mailman&view=mail_lsts', 'Mailing lists');
+echo $breadcrumbs;
+
 echo '<h2>';
-echo $this->objHelper->backButton('index.php');
 // Cannot use this buton here as array of ids will not be passed unless
 // a standard toolbar button is being display (or bespoke javascript provided(
 //$target = 'index.php?option=com_ra_mailman&task=user_select.subscribeAll';
@@ -53,12 +57,6 @@ echo 'Select subscriptions for ' . $this->user_name . '</h2>';
 
 
                             <?php
-                            /*
-                              <th class="w-1 text-center">
-                              <input type="checkbox" autocomplete="off" class="form-check-input" name="checkall-toggle" value=""
-                              title="<?php echo Text::_('JGLOBAL_CHECK_ALL'); ?>" onclick="Joomla.checkAll(this)"/>
-                              </th>
-                             */
                             echo '<th class="left">';
                             echo JHtml::_('searchtools.sort', 'Group', 'a.group_code', $listDirn, $listOrder);
                             echo '</th>';
