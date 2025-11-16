@@ -75,9 +75,9 @@ echo '<h2>Mailshots for ' . $this->group_code . ' ' . $this->list_name . '</h2>'
         echo '<tr class="' . $i % 2 . '">';
 
         echo '<td style="vertical-align: top" class="date_sent">';
-        echo HTMLHelper::_('date', $item->date_sent, 'h:i d/m/y');
-        if (HTMLHelper::_('date', $item->date_sent, 'h:i d/m/y') != HTMLHelper::_('date', $item->processing_started, 'h:i d/m/y')) {
-            echo '<br>' . HTMLHelper::_('date', $item->processing_started, 'h:i d/m/y');
+        echo HTMLHelper::_('date', $item->date_sent, 'H:i d/m/y');
+        if (HTMLHelper::_('date', $item->date_sent, 'H:i d/m/y') != HTMLHelper::_('date', $item->processing_started, 'H:i d/m/y')) {
+            echo '<br>' . HTMLHelper::_('date', $item->processing_started, 'H:i d/m/y');
         }
         echo '</td>' . PHP_EOL;
         echo '<td style="vertical-align: top">';
