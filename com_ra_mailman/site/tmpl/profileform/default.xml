@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+    <layout title="Edit or create MailMan profile" option="View">
+        <message>
+                        <![CDATA[Edit or create MailMan profile]]>
+        </message>
+    </layout>
+    <fields name="params">
+        <fieldset 
+            name="basic"
+            label="Options">
+            <field name="note1" 
+                   type="note" 
+                   showon="mode:0"
+                   label="This menu item should only be visible to Guest users"
+            />
+            <field name="note2" 
+                   type="note" 
+                   showon="mode:1"
+                   label="This menu item should only be visible to Registered users"
+            /> 
+            <field name="page_intro" 
+                    type="textarea" 
+                    default=""
+                    label="Introduction (optional)" 
+                    description="Any introductory text for the page" />              
+            <field name="mode" 
+                    default="1" 
+                    type="list" 
+                    label="Mode" 
+                    description="Type of menu required"                 
+                    class="inputbox" 
+                    size="1">
+            <option value="0">Self register</option>
+            <option value="1">Admin registration</option>
+            </field> 
+            <field
+                name="item_id"
+                query="SELECT 0 as `id` UNION SELECT `id` FROM #__ra_profiles ORDER BY `id`"
+                type="sql"
+                key_field="id" 
+                value_field="id"
+                label="ID"
+                require="true"
+                description="JGLOBAL_SHOW_TITLE_DESC">
+            </field>
+        </fieldset>
+    </fields>
+</metadata>
