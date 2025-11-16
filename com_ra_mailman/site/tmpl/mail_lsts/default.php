@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.3.4
+ * @version    4.5.7
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -17,6 +17,9 @@
  * 14/11/24 CB allow sort by preferred_name
  * 13/02/25 CB don't set up canEdit etc (never used)
  * 03/04/25 CB check isAuthore before creating Send button
+ * 14/07/25 CB message if Resend
+ * 08/08/25 CB show emails_outstanding on Resend
+ * 20/10/25 CB new mechanism for send
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -36,8 +39,8 @@ HTMLHelper::_('bootstrap.tooltip');
 HTMLHelper::_('behavior.multiselect');
 HTMLHelper::_('formbehavior.chosen', 'select');
 
-$objMailHelper = new Mailhelper;
-$objHelper = new ToolsHelper;
+$mailHelper = new Mailhelper;
+$toolsHelper = new ToolsHelper;
 $listOrder = $this->state->get('list.ordering');
 $listDirn = $this->state->get('list.direction');
 
@@ -90,6 +93,7 @@ $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
             echo '<th class="left">';
             echo 'Last sent';
             echo '</th>';
+            echo '<th>Outstanding</th>';
             if ($this->user->id > 0) {
                 echo '<th class="left">';
                 echo 'Actions';
@@ -111,8 +115,14 @@ $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
                 <?php
                 foreach ($this->items as $i => $item) {
                     // See if unsent mailshot is present
-                    $last_mailshot = $objMailHelper->lastMailshot($item->id);
-
+                    $last_mailshot = $mailHelper->lastMailshot($item->id);
+                    // Count number of subscribers
+                    $count_subscribers = $mailHelper->countSubscribers($item->id);
+                    // Set message if mailshot is pending
+                    if ($item->emails_outstanding > 0) {
+                        $message = $item->group_code . '/' . $item->name . ': ' . $this->mailshot_send_message;
+                        Factory::getApplication()->enqueueMessage($message, 'notice');
+                    }
                     echo '<tr class="row' . $i % 2 . '">';
                     echo '<td>' . $item->group_code . '</td>';
                     echo '<td>' . $item->name . '</td>';
@@ -124,38 +134,29 @@ $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
                     echo '<td>';
                     $sql = 'SELECT COUNT(id) FROM #__ra_mail_subscriptions ';
                     $sql .= 'WHERE state=1 AND list_id=' . $item->id;
-                    $count = $objHelper->getValue($sql);
+                    $count = $toolsHelper->getValue($sql);
                     // Allow the owner of the list to see who the subscribers are
                     if ($count > 0) {
                         echo $count;
                         if ($item->owner_id == $this->user->id) {
                             $target = 'index.php?option=com_ra_mailman&task=mail_lst.showSubscribers&list_id=' . $item->id . '&Itemid=' . $this->menu_id;
-                            echo $objHelper->imageButton('I', $target);
+                            echo $toolsHelper->imageButton('I', $target);
                         }
                     }
                     echo '</td>';
 
                     echo '<td>';
-                    $count = $objMailHelper->countMailshots($item->id, True);
+                    $count = $mailHelper->countMailshots($item->id, True);
                     if ($count > 0) {
                         echo $count;
                         $target = 'index.php?option=com_ra_mailman&view=mailshots&list_id=' . $item->id . '&Itemid=' . $this->menu_id;
-                        echo $objHelper->imageButton('I', $target);
+                        echo $toolsHelper->imageButton('I', $target);
                     }
-                    if (($last_mailshot->id > 0) AND ($objMailHelper->isAuthor($item->id)) AND (is_null($last_mailshot->date_sent))) {
-//                    if (($this->user->id > 0) AND (is_null($last_mailshot->date_sent))) {
-                        if ($last_mailshot->attachment != '') {
-                            $target = 'images/com_ra_mailman/' . $last_mailshot->attachment;
-                            $label = '<span class="icon-paperclip"></span>';
-                            echo $objHelper->buildLink($target, $label, True);
-                        }
-                        $target = 'index.php?option=com_ra_mailman&task=mailshot.send&mailshot_id=' . $last_mailshot->id . '&Itemid=' . $this->menu_id;
-                        if (is_null($last_mailshot->processing_started)) {
-                            $label = 'Send';
-                        } else {
-                            $label = 'Resend';
-                        }
-                        echo $objHelper->buildButton($target, $label, False, 'red');
+                    if (($item->emails_outstanding == 0)
+                            AND ($last_mailshot->id > 0)
+                            AND ($mailHelper->isAuthor($item->id))
+                            AND (is_null($last_mailshot->date_sent))) {
+                        echo $this->sendButton($last_mailshot, $count_subscribers);
                     }
                     echo '</td>';
 
@@ -163,10 +164,16 @@ $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
                     echo $last_mailshot->date;
                     echo '</td>';
 
+                    echo '<td>';
+                    if ($item->emails_outstanding > 0) {
+                        echo $item->emails_outstanding;
+                    }
+                    echo '</td>';
+
                     if ($this->user->id > 0) {
                         echo '<td>';
                         // Actions are determined by a function in the View itself
-                        $actions = $this->defineActions($item->id, $item->list_type, $last_mailshot);
+                        $actions = $this->defineActions($item->id, $item->list_type, $item->emails_outstanding, $last_mailshot);
                         echo $actions;
                         echo '</td>';
                     }
