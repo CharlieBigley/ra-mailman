@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.2.0
+ * @version    4.6.0
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2024 Charlie Bigley
@@ -10,6 +10,7 @@
  * 12/09/24 CB use literals as headings
  * 12/10/24 CB Use literal for Save
  * 13/02/24 CB don't use getIdentity
+ * 29/09/25 CB add field to select invitation list
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -29,6 +30,7 @@ HTMLHelper::_('bootstrap.tooltip');
 // Load admin language file
 $lang = Factory::getLanguage();
 $lang->load('com_ra_mailman', JPATH_SITE);
+$toolsHelper = new ToolsHelper;
 ?>
 
 <div class="mailshot-edit front-end-edit">
@@ -63,6 +65,15 @@ $lang->load('com_ra_mailman', JPATH_SITE);
 //                   echo $this->form->renderField('date_sent');
 //               }
                 echo $this->form->renderField('mail_list_id');
+                if (ToolsHelper::isInstalled('com_ra_events')) {
+                    $sql = 'SELECT COUNT(id) FROM `#__ra_events` ';
+                    $sql .= 'WHERE bookable=1 AND DATEDIFF(event_date, CURRENT_DATE)>0 ';
+                    $sql .= 'AND api_site_id IS NULL ';
+                    $count = $toolsHelper->getValue($sql);
+                    if ($count > 0) {
+                        echo $this->form->renderField('event_id');
+                    }
+                }
                 echo $this->form->renderField('attachment');
                 ?>
                 <?php if (!empty($this->item->attachment)) : ?>
