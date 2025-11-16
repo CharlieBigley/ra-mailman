@@ -2,18 +2,11 @@
 <?php
 
 /**
- * @version     1.0.9
- * @package     com_ra_tools
+ * @version     4.4.3
+ * @package     com_ra_maik\lman
  * @copyright   Copyright (C) 2020. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  * @author      Charlie Bigley <webmaster@bigley.me.uk>
- * 20/02/21 Created
- * 15/07/22 CB correct building of link
- * 18/07/22 CB Neighbouring Areas
- * 19/07/22 CB Check that menu parameters are not null
- * 02/01/23 CB show group-code even if not record found in ra_groups
- * 05/01/23 CB  Don't show programme if group name not found
- * 31/08/23 CB use view programme to show walks
  */
 // No direct access
 use Joomla\CMS\HTML\HTMLHelper;
