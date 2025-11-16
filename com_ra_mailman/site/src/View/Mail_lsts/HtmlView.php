@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.3.4
+ * @version    4.5.7
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -14,6 +14,7 @@
  * 14/10/24 CB when processing if edit/create allowed, use object passed by MailHelper->lastMailshot
  * 13/02/25 CB replace getIdentity with $this->getCurrentUser()
  * 03/04/25 CB correct check on mailshots not yet sent
+ * 20/10/25 CB sendButton
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\View\Mail_lsts;
@@ -21,12 +22,13 @@ namespace Ramblers\Component\Ra_mailman\Site\View\Mail_lsts;
 // No direct access
 defined('_JEXEC') or die;
 
-use \Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+use \Joomla\CMS\Component\ComponentHelper;
 use \Joomla\CMS\Factory;
 use \Joomla\CMS\Language\Text;
+use \Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use \Joomla\CMS\User\CurrentUserInterface;
 use Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
-use \Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
+use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
  * View class for a list of Ra_mailman.
@@ -37,15 +39,16 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
 
     protected $app;
     protected $items;
+    protected $mailshot_send_message;
     protected $pagination;
     protected $state;
     protected $params;
-    protected $objHelper;
+    protected $toolsHelper;
     protected $menu_id;
     protected $user;
     protected $last_sent;
 
-    function defineActions($list_id, $list_type, $last_mailshot) {
+    function defineActions($list_id, $list_type, $emails_outstanding, $last_mailshot) {
         /*
          * invoked from the template to set up the required action buttons for the last column of the report
          * $list_type will be Open / Closed
@@ -53,30 +56,35 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         if ($this->user->id == 0) {
             return '';
         }
+        if ($emails_outstanding > 0) {
+            return '';
+        }
         $objMailHelper = new Mailhelper;
         if ($objMailHelper->isAuthor($list_id)) {
             if (JDEBUG) {
                 echo 'Author  ' . $list_id;
+                //               print_r($last_mailshot);
             }
-            if ((is_null($last_mailshot->date_sent)) AND (!is_null($last_mailshot->processing_started))) {
+            if ((is_null($last_mailshot->date_sent))
+                    AND (!is_null($last_mailshot->processing_started))) {
                 //               $this->app->enqueueMessage('Last sent ' . $last_mailshot->date_sent . ', started ' . $last_mailshot->processing_started, 'warning');
                 $this->app->enqueueMessage('Sending has started ' . $last_mailshot->processing_started . ' cannot edit or create', 'warning');
                 return '';
             }
             $target = 'index.php?option=com_ra_mailman&view=mailshotform' . '&Itemid=' . $this->menu_id;
-            if (is_null($last_mailshot->date_sent)) {
+            if (is_null($last_mailshot->date_sent) AND ($last_mailshot->id > 0)) {
                 $caption = 'Edit';
                 $target .= '&id=' . $last_mailshot->id;
             } else {
                 $caption = 'Create';
             }
-            return $this->objHelper->buildLink($target . '&list_id=' . $list_id, $caption, False, "link-button button-p0159");
+            return $this->toolsHelper->buildLink($target . '&list_id=' . $list_id, $caption, False, "link-button button-p0159");
         }
 
         // See if User is already subscribed
         $sql = 'SELECT id, state FROM #__ra_mail_subscriptions WHERE user_id=' . $this->user->id;
         $sql .= ' AND list_id=' . $list_id;
-        $subscription = $this->objHelper->getItem($sql);
+        $subscription = $this->toolsHelper->getItem($sql);
         if ($list_type == 'Open') {
             if (is_null($subscription)) {
                 $target = 'index.php?option=com_ra_mailman&task=mail_lst.subscribe' . '&menu_id=' . $this->menu_id;
@@ -97,7 +105,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
                 $target = 'index.php?option=com_ra_mailman&task=mail_lst.unsubscribe&list_id=' . '&menu_id=' . $this->menu_id;
                 $caption = 'Un-subscribe';
                 $colour = 'rosycheeks';
-                return $this->objHelper->buildButton($target . $list_id . '&user_id=' . $this->user->id, $caption, False, $colour);
+                return $this->toolsHelper->buildButton($target . $list_id . '&user_id=' . $this->user->id, $caption, False, $colour);
             }
         }
         if ($list_type == 'Open') {
@@ -112,7 +120,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
                     $colour = 'sunrise';
                 }
             }
-            return $this->objHelper->buildButton($target . '&list_id=' . $list_id . '&user_id=' . $this->user->id, $caption, False, $colour);
+            return $this->toolsHelper->buildButton($target . '&list_id=' . $list_id . '&user_id=' . $this->user->id, $caption, False, $colour);
         } else {
             return '';
         }
@@ -134,7 +142,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
             echo 'user is NULL<br>';
         }
         $this->menu_id = $this->app->input->getInt('Itemid', '0');
-        $this->objHelper = new ToolsHelper;
+        $this->toolsHelper = new ToolsHelper;
 
         $this->state = $this->get('State');
         $this->items = $this->get('Items');
@@ -149,6 +157,15 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         }
 
         $this->_prepareDocument();
+        $params = ComponentHelper::getParams('com_ra_tools');
+        $email_log_level = $params->get('email_log_level', '0');
+        // Log level -2 is solely to benchmark the overhead of sending via SMTP
+        if ($email_log_level < 0) {
+            Factory::getApplication()->enqueueMessage('Email logging is in Benchmark mode: ' . $email_log_level, 'warning');
+        }
+        $params = ComponentHelper::getParams('com_ra_mailman');
+        $this->max_online_send = $params->get('max_online_send', 100);
+        $this->mailshot_send_message = $params->get('mailshot_send_message', 'Waiting for batch job');
         parent::display($tpl);
     }
 
@@ -208,6 +225,28 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
      */
     public function getState($state) {
         return isset($this->state->{$state}) ? $this->state->{$state} : false;
+    }
+
+    protected function sendButton($last_mailshot, $count_subscribers) {
+        //      print_r($last_mailshot);
+        //      echo '<br>';
+        $target_send = 'index.php?option=com_ra_mailman&task=mailshot.send&menu_id=' . $this->menu_id . '&mailshot_id=';
+        if (($last_mailshot->id > 0) AND is_null($last_mailshot->date_sent)) {
+            if ($last_mailshot->attachment != '') {
+                $target = 'images/com_ra_mailman/' . $last_mailshot->attachment;
+                $label = '<span class="icon-paperclip"></span>';
+                echo $this->toolsHelper->buildLink($target, $label, True);
+            }
+            $target = $target_send . $last_mailshot->id . '&total=' . $count_subscribers;
+//                                           $target = 'administrator/index.php?option=com_ra_mailman&task=mailshot.send&mailshot_id='  . '&menu_id=' . $this->menu_id;
+            if (is_null($last_mailshot->processing_started)) {
+                $label = 'Send';
+            } else {
+                $count = $this->mailHelper->countSubscribersOutstanding($last_mailshot->id);
+                $label = 'Resend to ' . $count;
+            }
+            return $this->toolsHelper->buildButton($target, $label, False);
+        }
     }
 
 }
