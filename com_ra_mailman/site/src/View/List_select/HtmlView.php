@@ -1,13 +1,14 @@
 <?php
 
 /**
- * @version    4.2.0
+ * @version    2.1.4
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  * 13/02/25 CB Replace getIdentity with $this->getCurrentUser();
  * 18/02/25 CB define $this->objHelper
+ * 07/07/25 CB set up $this->group_code
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\View\List_select;
@@ -79,6 +80,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         if (is_null($row)) {
             throw new \Exception('Can\'t find User', 404);
         }
+        $this->group_code = $row->home_group;
         $this->user_name = $row->home_group . ' ' . $row->preferred_name;
 //        echo '<h2>Selecting subscriptions for ' . $this->user_name . '</h2>';
         $this->state = $this->get('State');
