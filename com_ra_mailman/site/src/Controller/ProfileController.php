@@ -112,11 +112,16 @@ class ProfileController extends FormController {
     public function save($key = NULL, $urlVar = NULL) {
         // Check for request forgeries.
         $this->checkToken();
-
+        $this->app->enqueueMessage('Model: Token is valid', 'info');
         // Initialise variables.
         $model = $this->getModel('Profile', 'Site');
         if (is_null($model)) {
-            $this->app->enqueueMessage('Unable to get Model', 'error');
+            $this->app->enqueueMessage('Unable to get Model: Null', 'error');
+//            die('Unable to get Model');
+            return false;
+        }
+        if ($model == false) {
+            $this->app->enqueueMessage('Unable to get Model: false', 'error');
 //            die('Unable to get Model');
             return false;
         }

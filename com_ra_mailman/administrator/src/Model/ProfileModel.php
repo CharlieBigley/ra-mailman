@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.4.10
+ * @version    4.6.0
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -11,6 +11,8 @@
  * 05/11/24 CB lookup real name
  * 12/02/25 CB replace getIdentity with getCurrentUser
  * 07/07/25 CB use createUserDirect, not createUser
+ * 25/11/25 CB save preferred_name
+ * 06/12/25 CB update fields requireReset and block, delete comment
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -18,6 +20,7 @@ namespace Ramblers\Component\Ra_mailman\Administrator\Model;
 // No direct access.
 defined('_JEXEC') or die;
 
+use Joomla\CMS\Component\ComponentHelper;
 use \Joomla\CMS\Table\Table;
 use \Joomla\CMS\Factory;
 use \Joomla\CMS\Language\Text;
@@ -94,13 +97,17 @@ class ProfileModel extends AdminModel {
             $form->removeField('created_by');
             $form->removeField('modified');
             $form->removeField('modified_by');
+            // Set default group
+            $params = ComponentHelper::getParams('com_ra_tools');
+            $home_group = $params->get('default_group');
+            $form->setFieldAttribute('home_group', 'default', $home_group);
         } else {
             $form->setFieldAttribute('real_name', 'readonly', "true");
             $form->setFieldAttribute('email', 'readonly', "true");
             // lookup details from the user record
-            $objHelper = new ToolsHelper;
+            $toolsHelper = new ToolsHelper;
             $sql = 'SELECT name, email FROM `#__users` WHERE id=' . $id;
-            $item = $objHelper->getItem($sql);
+            $item = $toolsHelper->getItem($sql);
             if ($item) {
                 $form->setFieldAttribute('preferred_name', 'default', $item->name);
                 $form->setFieldAttribute('email', 'default', $item->email);
@@ -134,11 +141,27 @@ class ProfileModel extends AdminModel {
      * @since   4.0.0
      */
     public function getItem($pk = null) {
-//        if (is_null($pk)) {
-//            die('pk is null');
-//        } else {
-//            die('pk=' . $pk);
-//        }
+        /*
+          $db = $this->getDbo();
+          $query = $db->getQuery(true)
+          ->select('a.*')
+          ->select('u.name AS real_name,u.email, u.requireReset,u.block')
+          ->from($db->quoteName('#__ra_profiles', 'a'))
+          ->leftjoin($db->quoteName('#__users', 'u') . ' ON ' . $db->quoteName('u.id') . ' = ' . $db->quoteName('a.id'))
+          ->where($db->quoteName('a.id') . ' = ' . (int) $pk);
+          echo $db->replacePrefix($query) . '<br>';
+          $db->setQuery($query);
+
+          $item = $db->loadObject;
+          if ($item = parent::getItem($pk)) {
+          if (isset($item->params)) {
+          $item->params = json_encode($item->params);
+          }
+          }
+          var_dump($item);
+          die;
+          return $item;
+         */
         if ($item = parent::getItem($pk)) {
             if (isset($item->params)) {
                 $item->params = json_encode($item->params);
@@ -146,12 +169,14 @@ class ProfileModel extends AdminModel {
 
             // Do any processing on fields here if needed
             if ($item->id > 0) {
-                $objHelper = new ToolsHelper;
-//                $id = Factory::getApplication()->input->getInt('id', '0');
-                $sql = 'SELECT name, email from #__users WHERE id=' . $item->id;
-                $user = $objHelper->getItem($sql);
+                $toolsHelper = new ToolsHelper;
+                $sql = 'SELECT name, email, block, requireReset ';
+                $sql .= 'FROM #__users WHERE id=' . $item->id;
+                $user = $toolsHelper->getItem($sql);
                 $item->real_name = $user->name;
                 $item->email = $user->email;
+                $item->requireReset = $user->requireReset;
+                $item->block = $user->block;
             }
         }
 
@@ -230,10 +255,13 @@ class ProfileModel extends AdminModel {
         if ($authorised !== true) {
             throw new \Exception(Text::_('JERROR_ALERTNOAUTHOR'), 403);
         }
-        $group_code = $data['home_group'];
         $email = $data['email'];
-        $preferred_name = $data['preferred_name'];
-
+        $requireReset = $data['requireReset'];
+        $block = $data['block'];
+        $sql = 'UPDATE #__users SET requireReset=' . $requireReset;
+        $sql .= ', block=' . $block;
+        $sql .= ' WHERE id=';
+        $toolsHelper = new ToolsHelper;
         if (empty($id)) {
             // check if email or real name already being used
             $message = $objUserHelper->userExists($email, $real_name);
@@ -246,7 +274,6 @@ class ProfileModel extends AdminModel {
 //
 //        echo "id=$id<br>";
 //        var_dump($data);
-//        die('Save');
         // If ID is present, we are just updating the Group code / preferred_name
         if (!empty($id)) {
             $table = $this->getTable();
@@ -254,6 +281,7 @@ class ProfileModel extends AdminModel {
 
             try {
                 if ($table->save($data) === true) {
+                    $toolsHelper->executeCommand($sql . $id);
                     return $table->id;
                 } else {
                     Factory::getApplication()->enqueueMessage($table->getError(), 'error');
@@ -266,11 +294,7 @@ class ProfileModel extends AdminModel {
         }
         // We are creating a new profile record
         // First create a Joomla User record
-        echo 'Creating new user<br>';
-        echo 'Current user<br>' . $user->id . '<br>';
-        // first create a user
         $objUserHelper->group_code = $data['home_group'];
-//        $objUserHelper->name = $data['preferred_name'];
         $objUserHelper->name = $data['real_name'];
         $objUserHelper->email = $data['email'];
         $response = $objUserHelper->createUserDirect();
@@ -280,27 +304,18 @@ class ProfileModel extends AdminModel {
         }
         // Get id of the user just created
         $user_id = $objUserHelper->user_id;
-        Factory::getApplication()->enqueueMessage('Created user ' . $objUserHelper->name, 'info');
+        $toolsHelper->executeCommand($sql . $user_id);
+        $message = 'Created user ' . $objUserHelper->name;
+        $message .= ' (' . $data['preferred_name'] . ')';
+        Factory::getApplication()->enqueueMessage($message, 'info');
         // Then create a profile record with the same id
+        $objUserHelper->preferred_name = $data['preferred_name'];
         $response = $objUserHelper->createProfile();
         if ($response == false) {
             Factory::getApplication()->enqueueMessage($objUserHelper->error, 'error');
             return false;
         }
 //        Factory::getApplication()->enqueueMessage('Created profile record ' . $objUserHelper->group_code, 'info');
-        /*
-          // notify the administrator that a new user has been added on the front end
-          // get the id of the person to notify from global config
-          $params = Factory::getApplication()->getParams();
-
-          // See if an Administrator has been specified to receive emails about new users
-          $notify_new_users = (int) $params->get('notify_new_users');
-          echo 'Notify = <br>' . $notify_new_users . '<br>';
-          if ($notify_new_users > 0) {
-          $this->notifyUser($notify_new_users);
-          }
-         *
-         */
         return true;
     }
 

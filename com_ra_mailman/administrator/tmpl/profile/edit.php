@@ -1,11 +1,12 @@
 <?php
 /**
- * @version    4.0.0
+ * @version    4.6.0
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  * 05/11/24 CB separate tab for publishing
+ * 06/12/25 CB add fields requireReset and block
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -37,6 +38,8 @@ HTMLHelper::_('bootstrap.tooltip');
                 echo $this->form->renderField('preferred_name');
                 echo $this->form->renderField('home_group');
                 echo $this->form->renderField('email');
+                echo $this->form->renderField('requireReset');
+                echo $this->form->renderField('block');
                 ?>
 
             </fieldset>

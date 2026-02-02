@@ -1,89 +1,104 @@
 <?xml version="1.0" encoding="utf-8"?>
 <form>
-  <fieldset 
-    addfieldprefix="Ramblers\Component\Ra_tools\Administrator\Field"
+  <fieldset
+addfieldprefix="Ramblers\Component\Ra_tools\Administrator\Field"
     addruleprefix="Ramblers\Component\Ra_tools\Administrator\Rule"
-  > 
-    <field name="id" 
-        type="text" 
-        label="id" 
-        readonly="true" 
-        class="readonly" 
-        default="0" 
+  >
+    <field name="id"
+        type="text"
+        label="id"
+        readonly="true"
+        class="readonly"
+        default="0"
         description="JGLOBAL_FIELD_ID_DESC"
     />
     <field name="state" default="1" type="list" label="JSTATUS" description="JFIELD_PUBLISHED_DESC" class="inputbox" size="1">
       <option value="1">JPUBLISHED</option>
       <option value="0">JUNPUBLISHED</option>
     </field>
-    <field name="home_group" 
-        filter="safehtml" 
-        type="text" 
+    <field name="home_group"
+        filter="safehtml"
+        type="text"
         validate="groupcode"
         maxlength="4"
-        required="true" 
-        label="Home Group" 
-        description="Groups with which registered at Central Office" 
+        required="true"
+        label="Home Group"
+        description="Groups with which registered at Central Office"
         hint="aa01"
     />
-    <field name="real_name" 
-        maxlength="60" 
-        filter="string" 
-        type="text" 
-        label="Real name" 
-        description="This name is not displayed publicly" 
+    <field name="real_name"
+        maxlength="60"
+        filter="string"
+        type="text"
+        label="Real name"
+        description="This name is not displayed publicly"
         hint="Firstname Surname"
     />
-    <field name="preferred_name" 
-        maxlength="60" 
-        filter="string" 
-        type="text" 
-        required="true" 
-        label="Preferred name" 
-        description="This is the name that will be publicly visible" 
+    <field name="preferred_name"
+        maxlength="60"
+        filter="string"
+        type="text"
+        required="true"
+        label="Preferred name"
+        description="This is the name that will be publicly visible"
         hint="Name"
     />
-     <field name="email" 
-        maxlength="80" 
-        filter="email" 
-        type="email" 
-        required="true" 
-        label="Email" 
-        description="Email address" 
+     <field name="email"
+        maxlength="80"
+        filter="email"
+        type="email"
+        required="true"
+        label="Email"
+        description="Email address"
         hint="aaaa@bbbb.com"
-    />  
-    <!-- field name="created" 
-        type="timecreated" 
-        label="Created" 
-        description="Date created -->"  
-    />     
-    <field name="created" 
-        type="text" 
-        label="Created" 
+    />
+    <field name="requireReset"
+        type="radio"
+        class="btn-group btn-group-yesno"
+        label="Password Reset"
+        description="Whether or not a password reset is required"
+        default="0"
+        >
+            <option value="1">JYES</option>
+            <option value="0">JNO</option>
+    </field>
+    <field name="block"
+        type="radio"
+        label="Status"
+        class="btn-group"
+        default="0"
+        description="Whether or not User is Blocked"
+        >
+            <option value="1">Blocked</option>
+            <option value="0">Enabled</option>
+    </field>
+    <field name="created"
+        type="text"
+        label="Created"
         description="Date created"
-        readonly="true"  
+        readonly="true"
     />
-    <field name="created_by" 
-        type="user" 
-        default="0" 
+    <field name="created_by"
+        type="user"
+        default="0"
         label="Created by"
-    />   
-     <field name="modified" 
-        type="text" 
-        label="Last updated"
-        readonly="true" 
     />
-   <field name="modified_by" 
-       type="modifiedby" 
-       default="0" 
-       label="Updated by" 
-    />     
-    <field name="version_note" 
-           type="text" 
-           label="JGLOBAL_FIELD_VERSION_NOTE_LABEL" 
-           description="JGLOBAL_FIELD_VERSION_NOTE_DESC" 
-           class="inputbox" 
-           size="45" 
+     <field name="modified"
+        type="text"
+        label="Last updated"
+        readonly="true"
+    />
+   <field name="modified_by"
+       type="modifiedby"
+       default="0"
+       label="Updated by"
+    />
+    <field name="version_note"
+           type="text"
+           label="JGLOBAL_FIELD_VERSION_NOTE_LABEL"
+           description="JGLOBAL_FIELD_VERSION_NOTE_DESC"
+           class="inputbox"
+           size="45"
            labelclass="control-label"
     />
   </fieldset>

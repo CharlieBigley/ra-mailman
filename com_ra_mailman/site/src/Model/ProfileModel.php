@@ -165,6 +165,7 @@ class ProfileModel extends FormModel implements CurrentUserInterface {
      * @since   4.1.0
      */
     public function getForm($data = array(), $loadData = true) {
+        Factory::getApplication()->enqueueMessage('ProfilemModel: Getting form', 'info');
 // Get the form.
         $form = $this->loadForm('com_ra_mailman.profile', 'profile', array(
             'control' => 'jform',

@@ -121,15 +121,21 @@ class ProfilesModel extends ListModel {
         $db = $this->getDbo();
         $query = $this->_db->getQuery(true);
 
-        $query->select('p.id, p.home_group, p.preferred_name');
+        $query->select('p.id, p.state, p.home_group, p.preferred_name');
         //       $query->select('p.group_code');
         $query->select('a.id as user_id, a.name, a.email');
         $query->select(' a.block, a.requireReset, a.registerDate, a.lastvisitDate');
         $query->from('`#__users` AS a');
 
         $query->leftJoin($this->_db->qn('#__ra_profiles') . ' AS `p` ON p.id = a.id');
+        $filter_state = $this->getState('filter.state');
+        if ($filter_state == 1) {
+            $query->where('p.state= 0');
+        } elseif ($filter_state == 2) {
+            $query->where('a.block= 1');
+        }
 //      Don't show blocked users
-        $query->where($this->_db->qn('a.block') . '= 0');
+//
         // Search for this word
         $search = $this->getState('filter.search');
 

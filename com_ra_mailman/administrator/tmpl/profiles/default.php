@@ -106,6 +106,9 @@ $listDirn = $this->state->get('list.direction');
                             echo '</td>';
 
                             echo '<td>';
+                            if ($item->block == 1) {
+                                echo '<span class="icon-lock"></span>';
+                            }
 //                          If no profile is present, take name from User record
                             if ($item->preferred_name == '') {
                                 //$display_name = $this->escape($item->name);

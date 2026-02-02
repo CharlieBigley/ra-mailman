@@ -132,8 +132,8 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         // If not checked out, can save the item.
         if (!$checkedOut && ($canDo->get('core.edit') || ($canDo->get('core.create')))) {
             // 11/08/23 apply acts the save as does Save&Return
-//           ToolbarHelper::apply('mailshot.saveContinue', 'JTOOLBAR_APPLY');
-//            ToolbarHelper::apply('mailshot.apply', 'Save and continue');
+            ToolbarHelper::apply('mailshot.saveContinue', 'JTOOLBAR_APPLY');
+            ToolbarHelper::apply('mailshot.apply', 'Save and continue');
             ToolbarHelper::save('mailshot.save', 'JTOOLBAR_SAVE');  //Works as Save&Return
         }
 

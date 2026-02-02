@@ -4,3 +4,4 @@
 13/01/25 build version 4.1.16
 10/02/25 built 1.1.17 (don't use getIdentity)
 01/06/24 new schema in update 4.0; new stylig for emails; import reports (mark 1)
+05/06/25 initialise git
