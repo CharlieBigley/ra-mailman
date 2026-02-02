@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fields name="filter">
+        <field name="search" type="text" 
+               description="Search term"
+               label="COM_USERS_FILTER_SEARCH_DESC"
+               class="js-stools-search-string" />
+
+        
+
+    </fields>
+
+    <fields name="list">
+
+        <field name="fullordering"
+               type="list"
+               label="COM_RA_MAILMAN_LIST_FULL_ORDERING"
+               description="COM_RA_MAILMAN_LIST_FULL_ORDERING_DESC"
+               onchange="this.form.submit();"
+               default="a.id DESC"
+        >
+            <option value="">JGLOBAL_SORT_BY</option>
+            <option value="a.home_group ASC">Group Ascending</option>
+            <option value="a.home_group DESC">Group Descending</option>
+            <option value="p.preferred_name ASC">Name Ascending</option>
+            <option value="p.preferred_name DESC">Name Descending</option>
+            <option value="u.email ASC">Email Ascending</option>
+            <option value="u.email DESC">Email Descending</option>
+
+        </field>
+
+       <field name="limit"
+               type="limitbox"
+               label="COM_RA_MAILMAN_LIST_LIMIT"
+               description="COM_RA_MAILMAN_LIST_LIMIT_DESC"
+               class="input-mini"
+               default="25"
+               onchange="this.form.submit();"
+        />
+    </fields>
+</form>

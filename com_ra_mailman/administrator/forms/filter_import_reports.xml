@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form addfieldprefix="Ramblers\Component\Ra_tools\Administrator\Field">
+    <fields name="filter">
+        <field name="search" 
+            type="text" 
+            description="Search term"
+            label="COM_USERS_FILTER_SEARCH_DESC"
+            class="js-stools-search-string" />
+        <field
+            name="list_id"
+            label="Mailing list"
+            type="sql"    
+            query="SELECT id AS value, CONCAT(group_code,' ',name) as list_id FROM `#__ra_mail_lists`"
+            keyfield="id"
+            header="- Select list -"
+            input_type="list" 
+            onchange="this.form.submit();"
+            />
+         <field name="method_id"
+            label="Method"
+            description="Mode of subscription"
+            type="sql"    
+            query="SELECT id AS value, name AS method_id FROM `#__ra_mail_methods`"
+            keyfield="id"
+            header="- Select method -"
+            input_type="list" 
+            onchange="this.form.submit();"
+            />       
+        <field name="state"
+            type="list"
+            label="Status"
+            description="Active or Inactive"
+            onchange="this.form.submit();"
+        >
+            <option value="">- Select status -</option>
+            <option value="0">Inactive</option>
+            <option value="1">Active</option>
+        </field>
+    </fields>
+
+    <fields name="list">
+
+        <field name="fullordering"
+               type="list"
+               label="Order by"
+               description="Full ordering"
+               onchange="this.form.submit();"
+               default="l.group_code ASC"
+        >
+            <option value="">JGLOBAL_SORT_BY</option>
+            <option value="a.date_phase1 ASC">Date Ascending</option>
+            <option value="a.date_phase1 DESC">Date Decending</option>            
+            <option value="l.group_code ASC">Group Ascending</option>
+            <option value="l.group_code DESC">Group Decending</option>
+            <option value="l.name ASC">Mailing list Ascending</option>
+            <option value="l.name DESC">Mailing list Decending</option>
+            <option value="m.name ASC">Method Ascending</option>
+            <option value="m.name DESC">Method Decending</option>                        
+            <option value="a.num_errors ASC">Errors Ascending</option>
+            <option value="a.num_errors DESC">Errors Decending</option>
+            <option value="a.num_users ASC">Users Ascending</option>
+            <option value="a.num_users DESC">Users Decending</option>
+            <option value="a.num_subs ASC">Subscriptons Ascending</option>
+            <option value="a.num_subs DESC">Subscriptons Decending</option>
+            <option value="a.num_lapsed ASC">Lapsed Ascending</option>
+            <option value="a.num_lapsed DESC">Lapsed Decending</option>          
+            <option value="p.preferred_name ASC">User Ascending</option>
+            <option value="p.preferred_name DESC">User Decending</option>
+            <option value="a.input_file ASC">File Ascending</option>
+            <option value="a.input_file DESC">File date Descending</option>
+
+        </field>
+
+       <field name="limit"
+               type="limitbox"
+               label="COM_RA_MAILMAN_LIST_LIMIT"
+               description="COM_RA_MAILMAN_LIST_LIMIT_DESC"
+               class="input-mini"
+               default="25"
+               onchange="this.form.submit();"
+        />
+
+    </fields>
+</form>

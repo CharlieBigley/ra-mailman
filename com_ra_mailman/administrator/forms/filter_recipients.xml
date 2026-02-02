@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fields name="filter">
+        <field name="search" type="text" 
+               description="Search term"
+               label="COM_USERS_FILTER_SEARCH_DESC"
+               class="js-stools-search-string" />
+        <field
+            name="list_id"
+            label="Mailing list"
+            type="sql"    
+            query="SELECT id AS value, CONCAT(group_code,' ',name) as list_id FROM `#__ra_mail_lists`"
+            keyfield="id"
+            header="- Select list -"
+            input_type="list" 
+            onchange="this.form.submit();"
+            />
+    </fields>
+
+    <fields name="list">
+
+        <field name="fullordering"
+               type="list"
+               label="COM_RA_MAILMAN_LIST_FULL_ORDERING"
+               description="COM_RA_MAILMAN_LIST_FULL_ORDERING_DESC"
+               onchange="this.form.submit();"
+               default="a.id DESC"
+        >
+            <option value="">JGLOBAL_SORT_BY</option>
+
+            <option value="m.date_sent ASC">Date sent Ascending</option>
+            <option value="m.date_sent DESC">Date sent Descending</option>
+            <option value="mail_list.name ASC">Mail list Ascending</option>
+            <option value="mail_list.name DESC">Mail list Descending</option>
+            <option value="m.title ASC">Mailshot Ascending</option>
+            <option value="m.title DESC">Mailshot Descending</option>
+            <option value="p.preferred_name ASC">User Ascending</option>
+            <option value="p.preferred_name DESC">User Descending</option>
+            <option value="a.email ASC">Email Ascending</option>
+            <option value="a.email DESC">Email Descending</option>            
+            <option value="a.id ASC">ID Ascending</option>
+            <option value="a.id DESC">ID Descending</option>
+        </field>
+
+       <field name="limit"
+               type="limitbox"
+               label="COM_RA_MAILMAN_LIST_LIMIT"
+               description="COM_RA_MAILMAN_LIST_LIMIT_DESC"
+               class="input-mini"
+               default="25"
+               onchange="this.form.submit();"
+        />
+
+    </fields>
+
+</form>
+

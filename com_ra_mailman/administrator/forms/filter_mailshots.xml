@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<form>
+    <fields name="filter">
+        <field name="search" type="text" 
+               description="Search term"
+               label="COM_USERS_FILTER_SEARCH_DESC"
+               class="js-stools-search-string" />
+
+        <field name="status"
+               type="list"
+               label="Status"
+               onchange="this.form.submit();"
+        >
+                <option value="">- Select status -</option>
+                <option value="1">Not yet sent</option>
+                <option value="2">Partially sent</option>
+                <option value="3">Sent</option>
+        </field>
+        <field
+            name="list_id"
+            label="Mailing list"
+            type="sql"    
+            query="SELECT id AS value, CONCAT(group_code,' ',name) as list_id FROM `#__ra_mail_lists`"
+            keyfield="id"
+            header="- Select list -"
+            input_type="list" 
+            onchange="this.form.submit();"
+            />
+    </fields>
+
+    <fields name="list">
+
+        <field name="fullordering"
+               type="list"
+               label="COM_RA_MAILMAN_LIST_FULL_ORDERING"
+               description="COM_RA_MAILMAN_LIST_FULL_ORDERING_DESC"
+               onchange="this.form.submit();"
+               default="a.id DESC"
+        >
+            <option value="">JGLOBAL_SORT_BY</option>
+
+            <option value="a.date_sent ASC">Date sent Ascending</option>
+            <option value="a.date_sent DESC">Date sent Descending</option>
+            <option value="a.title ASC">Title Ascending</option>
+            <option value="a.title DESC">Title Descending</option>
+            <option value="mail_list.name ASC">Mail list Ascending</option>
+            <option value="mail_list.name DESC">Mail list Descending</option>
+            <option value="a.modified ASC">Last updated Ascending</option>
+            <option value="a.modified DESC">Last updated Descending</option>
+
+        </field>
+
+       <field name="limit"
+               type="limitbox"
+               label="COM_RA_MAILMAN_LIST_LIMIT"
+               description="COM_RA_MAILMAN_LIST_LIMIT_DESC"
+               class="input-mini"
+               default="25"
+               onchange="this.form.submit();"
+        />
+
+    </fields>
+
+</form>
