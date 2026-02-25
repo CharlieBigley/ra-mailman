@@ -431,38 +431,40 @@ class ReportsController extends FormController {
         //       $date = HTMLHelper::_('date', Factory::getDate('now'), 'd M y')
         $params = ComponentHelper::getParams('com_ra_mailman');
         $logo = '/images/com_ra_mailman/' . $params->get('logo_file');
-        $logo_align = $params->get('logo_align');
-//      Set the div for the header as a whole
-        $header = '<div style="background: ' . $params->get('colour_header', 'rgba(20, 141, 168, 0.5)') . ';';
-        $header .= ' height: ' . ($params->get('height') + 20 ) . 'px; border-radius: 5%; padding: 10px; "';
-        $header .= '>';
-
-//      Set the div for the header text
-        $header .= '<div style="float: ';
-        if ($logo_align == 'right') {
-            $header .= 'left;';
-        } else {
-            $header .= 'right;';
-        }
+//      Set the div for the header as a whole using flexbox for responsive layout
+        $header = '<div style="';
+        $header .= 'display: flex; ';
+        $header .= 'justify-content: space-between; ';
+        $header .= 'align-items: center; ';
+        $header .= 'gap: 20px; ';
+        $header .= 'background: ' . $params->get('colour_header', 'rgba(20, 141, 168, 0.5)') . '; ';
+        $header .= 'border-radius: 5%; ';
+        $header .= 'padding: 20px; ';
+        $header .= 'box-sizing: border-box; ';
+        $header .= 'width: 100%; ';
+        $header .= 'max-width: 100%; ';
+        $header .= 'overflow: hidden; ';
         $header .= '">';
+
+//      Set the div for the header text (left-aligned, flexible width, shrinks on small screens)
+        $header .= '<div style="flex: 1 1 auto; text-align: left; min-width: 0; overflow-wrap: break-word;">';
         $header .= $params->get('email_header');
         $header .= '</div>';
 
+//      Logo (right-aligned, non-shrinking)
         if (file_exists(JPATH_ROOT . $logo)) {
             $image_data = file_get_contents(JPATH_ROOT . $logo);
             $encoded = base64_encode($image_data);
-            $header .= '<a  href="' . $params->get('website') . '" >';
-            $header .= "<img src='data:image/jpeg;base64,{$encoded}' style='float: ";
-            $header .= $logo_align . ";'";
-            // $body .= '<div style="float: ' . 'left' . ';">';
-            $header .= ' height="' . $params->get('height') . 'px" width="' . $params->get('width') . 'px">';
-            $header .= "</a>";
+            $header .= '<a href="' . $params->get('website') . '" style="flex-shrink: 0; display: flex; margin-left: auto;">';
+            $header .= '<img src="data:image/jpeg;base64,' . $encoded . '" ';
+            $header .= 'style="height: ' . $params->get('height') . 'px; width: ' . $params->get('width') . 'px; display: block; max-width: 100%; height: auto;" ';
+            $header .= 'alt="Logo">';
+            $header .= '</a>';
         } else {
             echo 'Logo file "' . $logo . '" not found<br>';
         }
-        //$header .= '<i>' . $params->get('email_header') . '</i></div>';
 
-        $header .= '<br></div>';
+        $header .= '</div>';
         echo $header;
 
         $body = '<div style="background: ' . $params->get('colour_body', 'rgba(20, 141, 168, 0.5)');

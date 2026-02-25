@@ -55,10 +55,13 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         $this->menu_id = $app->input->getInt('Itemid', '0');
         $this->list_id = $app->input->getInt('list', '0');
         $layout = $app->input->getWord('layout', 'profile');
+        file_put_contents('/tmp/profile_debug.txt', "ProfileView getting state\n", FILE_APPEND);
         $this->state = $this->get('State');
+        file_put_contents('/tmp/profile_debug.txt', "ProfileView got state\n", FILE_APPEND);
         $this->item = $this->get('Item');
         $this->params = $app->getParams('com_ra_mailman');
         $this->canSave = $this->get('CanSave');
+        file_put_contents('/tmp/profile_debug.txt', "ProfileView getting form\n", FILE_APPEND);
         $this->form = $this->get('Form');
         $this->canDo = ContentHelper::getActions('com_ra_mailman');
 

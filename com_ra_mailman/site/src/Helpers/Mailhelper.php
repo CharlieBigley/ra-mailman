@@ -26,6 +26,8 @@
  * 19/08/25 CB make user_id public
  * 03/10/25 CB optionally include invitation to an event
  * 06/10/25 CB add colour for event link
+ * 25/02/26 CB restructured buildMessage to build the email as a whole, with header and footer, 
+ *             so that the event invitation can be included in the correct place   
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Helpers;
@@ -63,13 +65,58 @@ class Mailhelper {
         $this->user_id = $this->objApp->getSession()->get('user')->id;
     }
 
+    private function buildEmailHeader($params) {
+        /*
+         * Generates the responsive email header with text left-aligned and logo right-aligned
+         * Uses flexbox for responsive layout that works on all screen sizes
+         */
+        $logo = '/images/com_ra_mailman/' . $params->get('logo_file');
+
+// Set the div for the header as a whole using flexbox for responsive layout
+// In due course, can just user $header = $this->toolsHelper->buildEmailPreamble();
+        $header = '<div style="';
+        $header .= 'display: flex; ';
+        $header .= 'justify-content: space-between; ';
+        $header .= 'align-items: center; ';
+        $header .= 'gap: 20px; ';
+        $header .= 'background: ' . $params->get('colour_header', 'rgba(20, 141, 168, 0.5)') . '; ';
+        $header .= 'border-radius: 5%; ';
+        $header .= 'padding: 20px; ';
+        $header .= 'box-sizing: border-box; ';
+        $header .= 'width: 100%; ';
+        $header .= 'max-width: 100%; ';
+        $header .= 'overflow: hidden; ';
+        $header .= '">';
+
+//      Set the div for the header text (left-aligned, flexible width, shrinks on small screens)
+        $header .= '<div style="flex: 1 1 auto; text-align: left; min-width: 0; overflow-wrap: break-word;">';
+        $header .= $params->get('email_header');
+        $header .= '</div>';
+
+//      Logo (right-aligned, non-shrinking)
+        if (file_exists(JPATH_ROOT . $logo)) {
+            $image_data = file_get_contents(JPATH_ROOT . $logo);
+            $encoded = base64_encode($image_data);
+            $header .= '<a href="' . $params->get('website') . '" style="flex-shrink: 0; display: flex; margin-left: auto;">';
+            $header .= '<img src="data:image/jpeg;base64,' . $encoded . '" ';
+            $header .= 'style="height: ' . $params->get('height') . 'px; width: ' . $params->get('width') . 'px; display: block; max-width: 100%; height: auto;" ';
+            $header .= 'alt="Logo">';
+            $header .= '</a>';
+        } else {
+            Factory::getApplication()->enqueueMessage('Logo file "' . $logo . '" not found', 'warning');
+        }
+
+        $header .= '</div>';
+        return $header;
+    }
+
     public function buildMessage($mailshot_id) {
         /*
          * called by send to compile the final message:
-         * 1. system header, from config options
+         * 1. system header, from config options (text left-aligned, logo right-aligned)
          * 2. Name of the mailing list
          * 3. Actual body of the message as entered by the author
-         * 4. Name of the member who last edited the list, plus the name of othe owner if different
+         * 4. Name of the member who last edited the list, plus the name of the owner if different
          * 5. The footer defined for the list, followed by the email address of the list owner
          * 6. The system footer, from config options
          */
@@ -110,42 +157,26 @@ class Mailhelper {
         $this->email_title = $item->title;
 
         $params = ComponentHelper::getParams('com_ra_mailman');
-        $logo = '/images/com_ra_mailman/' . $params->get('logo_file');
-        $logo_align = $params->get('logo_align');
-//      Set the div for the header as a whole
-        $header = '<div style="background: ' . $params->get('colour_header', 'rgba(20, 141, 168, 0.5)') . ';';
-        $header .= ' height: ' . ($params->get('height') + 20 ) . 'px; border-radius: 5%; padding: 10px; "';
-        $header .= '>';
 
-//      Set the div for the header text
-        $header .= '<div style="float: ';
-        if ($logo_align == 'right') {
-            $header .= 'left;';
-        } else {
-            $header .= 'right;';
-        }
-        $header .= '">';
-        $header .= $params->get('email_header');
-        $header .= '</div>';
+// Start building the complete email HTML structure
+        $mailshot_body = '<!DOCTYPE html>';
+        $mailshot_body .= '<html>';
+        $mailshot_body .= '<head>';
+        $mailshot_body .= '<meta charset="UTF-8">';
+        $mailshot_body .= '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
+        $mailshot_body .= '<style>';
+        $mailshot_body .= 'body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }';
+        $mailshot_body .= 'div { box-sizing: border-box; }';
+        $mailshot_body .= '</style>';
+        $mailshot_body .= '</head>';
+        $mailshot_body .= '<body>';
 
-        $logo = '/images/com_ra_mailman/' . $params->get('logo_file');
-        if (file_exists(JPATH_ROOT . $logo)) {
-            $image_data = file_get_contents(JPATH_ROOT . $logo);
-            $encoded = base64_encode($image_data);
-            $header .= '<a  href="' . $params->get('website') . '" >';
-            $header .= "<img src='data:image/jpeg;base64,{$encoded}' style='float: ";
-            $header .= $logo_align . ";'";
-            $header .= ' height="' . $params->get('height') . 'px" width="' . $params->get('width') . 'px">';
-            $header .= "</a>";
-        } else {
-            Factory::getApplication()->enqueueMessage('Logo file "' . $logo . '" not found', 'warning');
-        }
+        // Build and insert the email header
+        $mailshot_body .= $this->buildEmailHeader($params);
 
-        $header .= '</div>';
-
-        $mailshot_body = $header;
+        // Add the email body
         $mailshot_body .= '<div style="background: ' . $params->get('colour_body', 'rgba(20, 141, 168, 0.5)');
-        $mailshot_body .= '; padding-top: 10px; ">';
+        $mailshot_body .= '; padding-top: 10px; padding-bottom: 10px; ">';
 
         $mailshot_body .= $item->body;
 
@@ -178,7 +209,7 @@ class Mailhelper {
         }
         // N.B. final </div> not included in case an event invitation is required
 // Footer comprises the footer from the list, plus the owners email address, plus the component footer
-// Created without closing tag so the unsibscribe link can be added
+// Created without closing tag so the unsubscribe link can be added
         $this->footer = '<div style="background: ' . $params->get('colour_footer', 'rgba(20, 141, 168, 0.8)');
         $this->footer .= '; padding: 10px;  border-radius: 5%; ">';
         $this->footer .= $item->footer . '<br>';
@@ -771,7 +802,7 @@ class Mailhelper {
 
         $count = 0;
         // Send message to the editor of the message
-        if ($this->sendEmail($user_email, $owner_email, $title, $mailshot_body . $link, $this->attachments)) {
+        if ($this->sendEmail($user_email, $owner_email, $title, $mailshot_body . '</div></body></html>', $this->attachments)) {
             $this->message .= ' [' . $this->email_title . '] sent to you at ' . $user_email;
             $count++;
         } else {
@@ -781,7 +812,7 @@ class Mailhelper {
 //        die('user email ' . $user_email . '<br>' . $this->message);
 //      If current user not the list owner, send another copy to the owner, reply_to = author
         if ($user_email != $owner_email) {
-            if ($this->sendEmail($owner_email, $user_email, $title, $mailshot_body . $link, $this->attachments)) {
+            if ($this->sendEmail($owner_email, $user_email, $title, $mailshot_body . '</div></body></html>', $this->attachments)) {
                 $this->message .= ', also sent to the owner at ' . $owner_email;
                 $count++;
             } else {
@@ -975,12 +1006,9 @@ class Mailhelper {
 //                if ($count == 1) {
 //                    Factory::getApplication()->enqueueMessage('Website base is ' . $website_base, 'error');
 //                }
-//            if (substr(JPATH_ROOT, 14, 6) == 'joomla') {            // Development
-//                $this->message .= ' ' . $token;
-//            }
-
 
                 $message .= $this->footer . $link . '</div>';
+                $message .= '</body></html>';
                 if (!$this->sendEmail($subscriber->email, $reply_to, $this->email_title, $message, $this->attachments)) {
                     $error_count++;
                 }

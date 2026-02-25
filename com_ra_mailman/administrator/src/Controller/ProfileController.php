@@ -125,7 +125,7 @@ class ProfileController extends FormController {
         if (!$form) {
             throw new \Exception($model->getError(), 500);
         }
-
+        $id = (int) $this->app->getUserState('com_ra_mailman.edit.profile.id');
         // Check for errors.
         if ($data === false) {
             // Get the validation messages.
@@ -146,21 +146,17 @@ class ProfileController extends FormController {
             $this->app->setUserState('com_ra_mailman.edit.profile.data', $jform);
 
             // Redirect back to the edit screen.
-            $id = (int) $this->app->getUserState('com_ra_mailman.edit.profile.id');
             $this->setRedirect(Route::_('administrator/index.php?option=com_ra_mailman&view=profile&layout=' . $layout . '&id=' . $id, false));
-
             $this->redirect();
         }
 
         // Attempt to save the data.
         $return = $model->save($data);
-
         // Check for errors.
         if ($return === false) {
             // Save the data in the session.
             $this->app->setUserState('com_ra_mailman.edit.profile.data', $data);
             // Redirect back to the edit screen.
-            $id = (int) $this->app->getUserState('com_ra_mailman.edit.profile.id');
             $this->setMessage('Save failed, layout=' . $layout . ',id= ' . $id, $model->getError(), 'warning');
             $this->setRedirect(Route::_('index.php?option=com_ra_mailman&view=profile&layout=' . $layout . '&id=' . $id, false));
             $this->redirect();
