@@ -34,7 +34,6 @@ use \Joomla\CMS\Table\Table;
 use \Joomla\CMS\MVC\Model\FormModel;
 use \Joomla\CMS\Object\CMSObject;
 use \Joomla\CMS\Helper\TagsHelper;
-use \Joomla\CMS\User\CurrentUserInterface;
 use Ramblers\Component\Ra_mailman\Site\Helpers\MailHelper;
 use Ramblers\Component\Ra_mailman\Site\Helpers\UserHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
@@ -44,9 +43,23 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
  *
  * @since  4.1.0
  */
-class ProfileModel extends FormModel implements CurrentUserInterface {
+class ProfileModel extends FormModel {
 
     private $item = null;
+
+    /**
+     * Constructor
+     */
+    public function __construct($config = array()) {
+        @file_put_contents('/tmp/profile_debug.txt', "ProfileModel constructor called\n", FILE_APPEND);
+        try {
+            parent::__construct($config);
+            @file_put_contents('/tmp/profile_debug.txt', "ProfileModel constructor - parent construct complete\n", FILE_APPEND);
+        } catch (\Throwable $e) {
+            @file_put_contents('/tmp/profile_debug.txt', "ProfileModel constructor ERROR: " . $e->getMessage() . "\n", FILE_APPEND);
+            throw $e;
+        }
+    }
 
     /**
      * Method to auto-populate the model state.
@@ -60,29 +73,46 @@ class ProfileModel extends FormModel implements CurrentUserInterface {
      * @throws  Exception
      */
     protected function populateState() {
-        $app = Factory::getApplication('com_ra_mailman');
+        file_put_contents('/tmp/profile_debug.txt', "START populateState\n", FILE_APPEND);
 
-// Load state from the request userState on edit or from the passed variable on default
-        if (Factory::getApplication()->input->get('layout') == 'edit') {
-            $id = Factory::getApplication()->getUserState('com_ra_mailman.edit.profile.id');
-        } else {
-            $id = Factory::getApplication()->input->get('id');
-            Factory::getApplication()->setUserState('com_ra_mailman.edit.profile.id', $id);
+        try {
+            file_put_contents('/tmp/profile_debug.txt', "Getting app\n", FILE_APPEND);
+            $app = Factory::getApplication('com_ra_mailman');
+            file_put_contents('/tmp/profile_debug.txt', "Got app: " . get_class($app) . "\n", FILE_APPEND);
+
+            // Load state from the request userState on edit or from the passed variable on default
+            file_put_contents('/tmp/profile_debug.txt', "Getting layout\n", FILE_APPEND);
+            if (Factory::getApplication()->input->get('layout') == 'edit') {
+                $id = Factory::getApplication()->getUserState('com_ra_mailman.edit.profile.id');
+            } else {
+                $id = Factory::getApplication()->input->get('id');
+                Factory::getApplication()->setUserState('com_ra_mailman.edit.profile.id', $id);
+            }
+
+            file_put_contents('/tmp/profile_debug.txt', "Setting state: id=$id\n", FILE_APPEND);
+            $this->setState('profile.id', $id);
+            $layout = Factory::getApplication()->input->get('layout');
+
+            // Load the parameters.
+            file_put_contents('/tmp/profile_debug.txt', "Getting params\n", FILE_APPEND);
+            $params = $app->getParams();
+            file_put_contents('/tmp/profile_debug.txt', "Got params: " . var_export($params, true) . "\n", FILE_APPEND);
+
+            if (!$params) {
+                file_put_contents('/tmp/profile_debug.txt', "Params is empty, returning\n", FILE_APPEND);
+                return false;
+            }
+            $params_array = $params->toArray();
+            if (isset($params_array['item_id'])) {
+                $this->setState('profile.id', $params_array['item_id']);
+            }
+
+            $this->setState('params', $params);
+            file_put_contents('/tmp/profile_debug.txt', "populateState COMPLETE\n", FILE_APPEND);
+        } catch (\Throwable $e) {
+            file_put_contents('/tmp/profile_debug.txt', "ERROR: " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n", FILE_APPEND);
+            throw $e;
         }
-
-        $this->setState('profile.id', $id);
-        $layout = Factory::getApplication()->input->get('layout');
-
-// Load the parameters.
-        $params = $app->getParams();
-        $params_array = $params->toArray();
-//       var_dump($params_array);
-//       die('layout=' . $layout . ', Mode=' . $params_array['mode']);
-        if (isset($params_array['item_id'])) {
-            $this->setState('profile.id', $params_array['item_id']);
-        }
-
-        $this->setState('params', $params);
     }
 
     /**
@@ -95,7 +125,9 @@ class ProfileModel extends FormModel implements CurrentUserInterface {
      * @throws  Exception
      */
     public function getItem($id = null) {
+        @file_put_contents('/tmp/profile_debug.txt', "ProfileModel getItem" . "\n", FILE_APPEND);
         $user = $this->getCurrentUser();
+        @file_put_contents('/tmp/profile_debug.txt', "ProfileModel getItem: user is " . $user->id . "\n", FILE_APPEND);
         $user_id = $user->id;
         if ($this->item === null) {
             $this->item = false;
