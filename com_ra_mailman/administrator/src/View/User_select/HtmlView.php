@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.5.3
+ * @version    4.6.1
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -10,6 +10,7 @@
  * 07/09/23 CB as button with number of records
  * 09/03/25 CB direct "subscribe" to user_select Controller, not Subscriptions
  * 25/08/25 CB Help
+ * 12/02/26 CB change page title
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\View\User_select;
@@ -111,11 +112,11 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         Factory::getApplication()->input->set('hidemainmenu', true);
         // Set sidebar action
         Sidebar::setAction('index.php?option=com_ra_mailman&view=user_select');
-        $title = 'Select ';
+        $title = 'Manage ';
         if ($this->record_type == 1) {
-            $title .= 'Subscribers';
+            $title .= 'Subscriptions';
         } else {
-            $title .= 'Authors';
+            $title .= 'Authorship rights';
         }
         $title .= ' for ' . $this->group_code . ' ' . $this->list_name;
         if ($this->home_group_only == 1) {

@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.5.7
+ * @version    4.6.1
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -11,6 +11,7 @@
  * 23/06/25 CB use sub_query
  * 03/09/25 CB Breadcrumbs
  * 16/10/25 CB ass mail_lists to breadcrumbs (same as Back button)
+ * 12/02/26 CB change labels to Grant/Revoke
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -107,7 +108,11 @@ echo $breadcrumbs;
                                         $label = 'Downgrade';
                                         $colour = 'mud';
                                     } else {
-                                        $label = 'Unsubscribe';
+                                        if ($this->record_type == 1) {
+                                            $label = 'Unsubscribe';
+                                        } else {
+                                            $label = 'Revoke';
+                                        }
                                         $action = 'un';
                                         $colour = 'rosycheeks';
                                     }
@@ -120,7 +125,7 @@ echo $breadcrumbs;
                                 if ($this->record_type == 1) {
                                     $label = 'Subscribe';
                                 } else {
-                                    $label = 'Enable';
+                                    $label = 'Grant';
                                 }
                                 $author = '';
                                 $method = '';
