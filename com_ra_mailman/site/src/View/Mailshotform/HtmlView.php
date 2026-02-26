@@ -1,8 +1,8 @@
 <?php
 
 /**
- * @version    4.2.0
- * @package    Com_Ra_mailman
+ * @version    4.6.1
+ * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2024 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
@@ -10,6 +10,7 @@
  * 07/10/24 CB allow selection of csv files as attachment
  * 13/02/25 CB set up $this->user from getCurrentUser
  *             use ContentHelper to set up $canEdit
+ * 15/02/26 CB grant owner right to Save and Edit
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\View\Mailshotform;
@@ -22,6 +23,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use \Joomla\CMS\Factory;
 use \Joomla\CMS\Language\Text;
 use \Joomla\CMS\User\CurrentUserInterface;
+use Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
@@ -52,29 +54,36 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
     public function display($tpl = null) {
         $app = Factory::getApplication();
         $this->user = $this->getCurrentUser();
+        $mailHelper = new Mailhelper;
 
         $this->state = $this->get('State');
         $this->item = $this->get('Item');
         $this->params = $app->getParams('com_ra_mailman');
         $canDo = ContentHelper::getActions('com_ra_mailman');
-        $this->canEdit = $canDo->get('core.edit');
-        $this->canSave = $canDo->get('core.create');
 
         $this->form = $this->get('Form');
 
-        // Check for errors.
+// Check for errors.
         if (count($errors = $this->get('Errors'))) {
             throw new \Exception(implode("\n", $errors));
         }
         $this->objHelper = new ToolsHelper;
-        // Get the  id of the Mailing list, passed as part of the URL
+// Get the  id of the Mailing list, passed as part of the URL
         $this->list_id = $app->input->getInt('list_id', '0');
         if ($this->list_id == 0) {
             Factory::getApplication()->enqueueMessage('this->list_name is Zero', 'message');
+            return;
         } else {
-            $sql = 'SELECT group_code, name from `#__ra_mail_lists` WHERE id=' . $this->list_id;
+            $sql = 'SELECT group_code, name, owner_id from `#__ra_mail_lists` WHERE id=' . $this->list_id;
             $row = $this->objHelper->getItem($sql);
             $this->list_name = $row->group_code . ' ' . $row->name;
+            if ($mailHelper->isAuthor($this->list_id)) {
+                $this->canSave = true;
+                $this->canEdit = true;
+            } else {
+                $this->canEdit = $canDo->get('core.edit');
+                $this->canSave = $canDo->get('core.create');
+            }
         }
 
         $this->_prepareDocument();
@@ -94,8 +103,8 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         $menus = $app->getMenu();
         $title = null;
 
-        // Because the application sets a default page title,
-        // we need to get it from the menu item itself
+// Because the application sets a default page title,
+// we need to get it from the menu item itself
         $menu = $menus->getActive();
 
         if ($menu) {

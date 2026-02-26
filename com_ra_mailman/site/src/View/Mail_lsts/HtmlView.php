@@ -15,6 +15,7 @@
  * 13/02/25 CB replace getIdentity with $this->getCurrentUser()
  * 03/04/25 CB correct check on mailshots not yet sent
  * 20/10/25 CB sendButton
+ * 04/02/26 CB fix Un-subscribe bug
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\View\Mail_lsts;
@@ -102,7 +103,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         // For unsubscribing, we don't care if the list is open or closed
         if (!is_null($subscription)) {
             if ($subscription->state > 0) {
-                $target = 'index.php?option=com_ra_mailman&task=mail_lst.unsubscribe&list_id=' . '&menu_id=' . $this->menu_id;
+                $target = 'index.php?option=com_ra_mailman&task=mail_lst.unsubscribe&menu_id=' . $this->menu_id . '&list_id=';
                 $caption = 'Un-subscribe';
                 $colour = 'rosycheeks';
                 return $this->toolsHelper->buildButton($target . $list_id . '&user_id=' . $this->user->id, $caption, False, $colour);

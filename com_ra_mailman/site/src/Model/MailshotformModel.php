@@ -9,7 +9,8 @@
  * 11/09/24 CB special code when loading form
  * 07/10/24 CB don't change attributes of field mail_list_id
  * 12/02/25 CB replace getIdentity with getCurrentUser
- * 13/02/25 CB implement CurrentUserInterface 
+ * 13/02/25 CB implement CurrentUserInterface
+ * 16/02/26 CB grant owner right to Save and Edit
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Model;
@@ -25,6 +26,7 @@ use \Joomla\CMS\MVC\Model\FormModel;
 use \Joomla\CMS\Object\CMSObject;
 use \Joomla\CMS\Helper\TagsHelper;
 use \Joomla\CMS\User\CurrentUserInterface;
+use Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 
 /**
  * Ra_mailman model.
@@ -95,13 +97,18 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
             if ($table !== false && $table->load($id) && !empty($table->id)) {
                 $user = $this->getCurrentUser();
                 $id = $table->id;
+                $app = Factory::getApplication();
+                $list_id = $app->input->getInt('list_id', '0');
+                $mailHelper = new Mailhelper;
+                if ($mailHelper->isAuthor($list_id)) {
+                    $canEdit = true;
+                } else {
+                    $canEdit = $user->authorise('core.edit', 'com_ra_mailman') || $user->authorise('core.create', 'com_ra_mailman');
 
-                $canEdit = $user->authorise('core.edit', 'com_ra_mailman') || $user->authorise('core.create', 'com_ra_mailman');
-
-                if (!$canEdit && $user->authorise('core.edit.own', 'com_ra_mailman')) {
-                    $canEdit = $user->id == $table->created_by;
+                    if (!$canEdit && $user->authorise('core.edit.own', 'com_ra_mailman')) {
+                        $canEdit = $user->id == $table->created_by;
+                    }
                 }
-
                 if (!$canEdit) {
                     throw new \Exception(Text::_('JERROR_ALERTNOAUTHOR'), 403);
                 }
@@ -298,15 +305,22 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
     public function save($data) {
         $id = (!empty($data['id'])) ? $data['id'] : (int) $this->getState('mailshot.id');
         $state = (!empty($data['state'])) ? 1 : 0;
-        $user = $this->getCurrentUser();
-
-        if ($id) {
-            // Check the user can edit this item
-            $authorised = $user->authorise('core.edit', 'com_ra_mailman') || $authorised = $user->authorise('core.edit.own', 'com_ra_mailman');
+        $list_id = $data['mail_list_id'];
+        //       var_dump($data);
+        //       die($list_id);
+        $mailHelper = new Mailhelper;
+        if ($mailHelper->isAuthor($list_id)) {
+            $authorised = true;
         } else {
-            // Check the user can create new items in this section
-            $authorised = $user->authorise('core.create', 'com_ra_mailman');
+            if ($id) {
+                // Check the user can edit this item
+                $authorised = $user->authorise('core.edit', 'com_ra_mailman') || $authorised = $user->authorise('core.edit.own', 'com_ra_mailman');
+            } else {
+                // Check the user can create new items in this section
+                $authorised = $user->authorise('core.create', 'com_ra_mailman');
+            }
         }
+        $user = $this->getCurrentUser();
 
         if ($authorised !== true) {
             throw new \Exception(Text::_('JERROR_ALERTNOAUTHOR'), 403);
