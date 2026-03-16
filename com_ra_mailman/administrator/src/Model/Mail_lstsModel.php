@@ -10,6 +10,7 @@
  * 14/11/24 CB insert debug statement, take owner name from ra_profiles
  * 30/07/25 search for ID: using helper
  * 08/08/25 CB SELECT all fields
+ * 16/03/26 CB filter by group if not full_version
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -24,6 +25,7 @@ use \Joomla\CMS\Language\Text;
 use \Joomla\CMS\Helper\TagsHelper;
 use \Joomla\Database\ParameterType;
 use \Joomla\Utilities\ArrayHelper;
+use \Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use \Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
@@ -119,6 +121,10 @@ class Mail_lstsModel extends ListModel {
      * @since   1.0.6
      */
     protected function getListQuery() {
+        // See if we are running the full version
+        $mailHelper = new MailHelper;
+        $group = $mailHelper->getDefaultGroup();
+
         // Create a new query object.
         $db = $this->getDbo();
         $query = $db->getQuery(true);
@@ -139,6 +145,9 @@ class Mail_lstsModel extends ListModel {
             $query->where('a.state = ' . (int) $published);
         } elseif (empty($published)) {
             $query->where('(a.state IN (0, 1))');
+        }
+        if ($group !== 'N') {
+            $query->where('a.group_code=' . $db->quote($group));
         }
 
         // Filter by search in title

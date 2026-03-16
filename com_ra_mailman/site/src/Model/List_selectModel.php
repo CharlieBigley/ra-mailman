@@ -6,17 +6,6 @@
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
-  UPDATE dev_ra_events SET modified_by = 980 WHERE id =1;
-  UPDATE dev_ra_events SET modified_by = 981 WHERE id =2;
-  UPDATE dev_ra_events SET modified_by = 982 WHERE id =3;
-  UPDATE dev_ra_events SET modified_by = 983 WHERE id =4;
-  UPDATE dev_ra_events SET modified_by = 984 WHERE id =5;
-  UPDATE dev_ra_events SET modified_by = 985 WHERE id =6;
-  UPDATE dev_ra_events SET modified_by = 985 WHERE id =7;
-  UPDATE dev_ra_events SET modified_by = 987 WHERE id =8;
-  UPDATE dev_ra_events SET modified_by = 988 WHERE id =9;
-  UPDATE dev_ra_events SET modified_by = 989 WHERE id =10;
-  UPDATE dev_ra_events SET modified_by = 990 WHERE id =11;
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Model;
@@ -31,7 +20,6 @@ use \Joomla\CMS\Language\Text;
 use \Joomla\CMS\Helper\TagsHelper;
 use \Joomla\Database\ParameterType;
 use \Joomla\Utilities\ArrayHelper;
-use \Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use \Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**

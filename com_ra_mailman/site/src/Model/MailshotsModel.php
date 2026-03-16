@@ -13,6 +13,7 @@
  * 14/10/24 CB return name of attachments in list query
  * 14/08/24 CB get all fields
  * 14/11/25 CB change __ra_mailshots to __ra_mail_shots
+ * 16/03/26 CB filter by group if not full_version
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Model;
@@ -24,6 +25,7 @@ use \Joomla\CMS\Factory;
 use \Joomla\CMS\Language\Text;
 use \Joomla\CMS\MVC\Model\ListModel;
 use \Joomla\Component\Fields\Administrator\Helper\FieldsHelper;
+use \Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
@@ -119,6 +121,9 @@ class MailshotsModel extends ListModel {
     protected function getListQuery() {
         // list_id will have been passed as a parameter to identify the mailing list being queried
         $this->list_id = Factory::getApplication()->input->getInt('list_id', 0);
+        // See if we are running the full version
+        $mailHelper = new MailHelper;
+        $group = $mailHelper->getDefaultGroup();
 
         // Create a new query object.
         $db = $this->getDbo();
@@ -134,6 +139,11 @@ class MailshotsModel extends ListModel {
         if ($this->list_id > '0') {
             $query->where($this->_db->qn('a.mail_list_id') . ' = ' . $this->_db->q($this->list_id));
         }
+
+        if ($group !== 'N') {
+            $query->where('a.group_code=' . $db->quote($group));
+        }
+
         // Search for this word
         $searchWord = $this->getState('filter.search');
 

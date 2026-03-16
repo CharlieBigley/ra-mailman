@@ -9,6 +9,7 @@
  * 16/07/25 CB regenerated, updated with different $query
  * 27/07/25 CB reinstate search using ToolsHelper
  * 30/07/25 search for ID: using helper
+ * 16/03/26 CB filter by group if not full_version
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -117,6 +118,9 @@ class SubscriptionsModel extends ListModel {
      * @since   4.4.11
      */
     protected function getListQuery() {
+        // See if we are running the full version
+        $mailHelper = new MailHelper;
+        $group = $mailHelper->getDefaultGroup();
         // Create a new query object.
         $query = $this->_db->getQuery(true);
 
@@ -155,6 +159,9 @@ class SubscriptionsModel extends ListModel {
             $query->where('a.state = ' . (int) $published);
         } elseif (empty($published)) {
             $query->where('(a.state IN (0, 1))');
+        }
+        if ($group !== 'N') {
+            $query->where('l.group_code=' . $db->quote($group));
         }
         $search_fields = array(
             'l.group_code',

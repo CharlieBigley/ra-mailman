@@ -26,8 +26,9 @@
  * 19/08/25 CB make user_id public
  * 03/10/25 CB optionally include invitation to an event
  * 06/10/25 CB add colour for event link
- * 25/02/26 CB restructured buildMessage to build the email as a whole, with header and footer, 
- *             so that the event invitation can be included in the correct place   
+ * 25/02/26 CB restructured buildMessage to build the email as a whole, with header and footer,
+ *             so that the event invitation can be included in the correct place
+ * 16/03/26 CB changes for sub-set
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Helpers;
@@ -406,6 +407,30 @@ class Mailhelper {
         }
 
         return strrev($token) . "M";
+    }
+
+    public function getDefaultGroup() {
+        $this->app = Factory::getApplication();
+        $context = 'com_ra_mailman.default_group.';
+
+        $default_group = $this->app->getUserState($context, '');
+        if ($default_group == '') {
+            $params = ComponentHelper::getParams('com_ra_mailman');
+            $full_version = $params->get('full_version');
+            if ($full_version == 'Y') {
+                return 'N';
+            } else {
+                // Get home group from profile record
+                $user_id = 1;
+                $sql = 'SELECT group_code FROM #__ra_profiles WHERE id=' . $user_id;
+                $group = $this->toolsHelper->getValue($sql);
+                if (is_null($group)) {
+                    throw new Exception('Can\'t find User record', 404);
+                }
+                $this->app->setUserState($context, $group);
+                return $group;
+            }
+        }
     }
 
     public function getDescription($list_id) {

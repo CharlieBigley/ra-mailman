@@ -10,6 +10,7 @@
  * 14/10/24 CB return name of attachments in list query
  * 31/10/24 CB allow filtering
  * 09/04/25 CB correct WHERE clause for list_id
+ * 16/03/26 CB filter by group if not full_version
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -23,7 +24,7 @@ use \Joomla\CMS\Factory;
 use \Joomla\CMS\Language\Text;
 use \Joomla\CMS\Helper\TagsHelper;
 use \Joomla\Database\ParameterType;
-use \Joomla\Utilities\ArrayHelper;
+use \Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
@@ -120,6 +121,9 @@ class MailshotsModel extends ListModel {
     protected function getListQuery() {
         // list_id may have been passed as a parameter to identify the mailing list being queried
         $this->list_id = Factory::getApplication()->input->getInt('list_id', 0);
+        // See if we are running the full version
+        $mailHelper = new MailHelper;
+        $group = $mailHelper->getDefaultGroup();
 
         $query = $this->_db->getQuery(true);
 
@@ -148,6 +152,10 @@ class MailshotsModel extends ListModel {
         }
         if ($this->list_id !== '0') {
             $query->where('a.mail_list_id = ' . $this->list_id);
+        }
+
+        if ($group !== 'N') {
+            $query->where('a.group_code=' . $db->quote($group));
         }
         // Filter by status
         $status = $this->getState('filter.status');

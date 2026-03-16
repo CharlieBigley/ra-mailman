@@ -9,6 +9,7 @@
  * 27/01/24 CB publish
  * 22/10/24 CB comment out diagnostics
  * 12/02/25 CB replace getIdentity with getCurrentUser
+ * 16/03/26 CB use defauls group if not full_version
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -23,6 +24,7 @@ use \Joomla\CMS\Plugin\PluginHelper;
 use \Joomla\CMS\MVC\Model\AdminModel;
 use \Joomla\CMS\Helper\TagsHelper;
 use \Joomla\CMS\Filter\OutputFilter;
+use \Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 
 /**
  * Mail_lst model.
@@ -82,6 +84,10 @@ class Mail_lstModel extends AdminModel {
         // Initialise variables.
         $app = Factory::getApplication();
 
+        // See if we are running the full version
+        $mailHelper = new MailHelper;
+        $group = $mailHelper->getDefaultGroup();
+
         // Get the form.
         $form = $this->loadForm(
                 'com_ra_mailman.mail_lst',
@@ -94,6 +100,13 @@ class Mail_lstModel extends AdminModel {
 
         if (empty($form)) {
             return false;
+        }
+        // If not full version, cannot choose group
+        if ($group !== 'N') {
+            $form->setFieldAttribute('group_code', 'default', $group);
+            $form->setFieldAttribute('group_code', 'readonly', 'true');
+//            $form->setFieldAttribute('chat_list', 'readonly', 'true');
+            $form->removeField('chat_list');
         }
         $list_id = $form->getvalue('list_id');
         $form->setFieldAttribute('mail_list_id', 'default', $list_id);

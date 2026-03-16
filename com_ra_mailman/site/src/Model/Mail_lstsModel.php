@@ -13,6 +13,7 @@
  * 30/07/25 search for ID: using helper
  * 14/08/25 CB get all fields
  * 01/10/25 CB correct sort fields
+ * 16/03/26 CB filter by group if not full_version
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Model;
@@ -24,6 +25,7 @@ use \Joomla\CMS\Factory;
 use \Joomla\CMS\Language\Text;
 use \Joomla\CMS\MVC\Model\ListModel;
 use \Joomla\Component\Fields\Administrator\Helper\FieldsHelper;
+use \Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
@@ -118,6 +120,9 @@ class Mail_lstsModel extends ListModel {
      * @since   1.0.6
      */
     protected function getListQuery() {
+        // See if we are running the full version
+        $mailHelper = new MailHelper;
+        $group = $mailHelper->getDefaultGroup();
         // Create a new query object.
         $db = $this->getDbo();
         $query = $this->_db->getQuery(true);
@@ -131,7 +136,9 @@ class Mail_lstsModel extends ListModel {
         $query->leftJoin($this->_db->qn('#__ra_profiles') . ' AS `p` ON p.id = a.owner_id');
 
         $query->where('a.state = 1');
-
+        if ($group !== 'N') {
+            $query->where('a.group_code=' . $db->quote($group));
+        }
         // Search for this word
         $searchWord = $this->getState('filter.search');
 
