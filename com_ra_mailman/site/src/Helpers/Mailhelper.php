@@ -853,55 +853,42 @@ class Mailhelper {
     }
 
     function sendEmail($to, $reply_to, $subject, $body, $attachments = '') {
-        $params = ComponentHelper::getParams('com_ra_mailman');
-
-        if (!$params->get('smtp_override', 0)) {
-            // Default behaviour: delegate to ra_tools ToolsHelper
-            $this->toolsHelper->sendEmail($to, $reply_to, $subject, $body, $attachments);
-            return;
+        $this->toolsHelper->sendEmail($to, $reply_to, $subject, $body, $attachments);
+        return;
+        ////////////////////////////////////////////////////////////////////////
+        // Log level -2 is solely to benchmark the overhead of sending via SMTP
+        if ($this->email_log_level < 0) {
+            return true;
         }
-
-        // SMTP override is enabled: use the component's own SMTP settings
-        if ($to === '') {
+        if ($to == '') {
             Factory::getApplication()->enqueueMessage('To address is missing', 'error');
-            return false;
+            return 0;
         }
-
         $objMail = Factory::getMailer();
+        $config = Factory::getConfig();
+        if (is_null($config)) {
+            // being run in batch mode
+            $params = ComponentHelper::getParams('com_ra_mailman');
+            $email_details = $params['email_details'];
+            $sender = explode('.', $email_details);
+//           $sender = array(
+//               'webmaster@bigley.me.uk',
+//               'MailMan'
+//           );
+//           $reply_to = 'webmaster@bigley.me.uk';
+        } else {
+            $sender = array(
+                $config->get('mailfrom'),
+                $config->get('fromname')
+            );
 
-        // Apply custom SMTP transport when a host is specified
-        $smtp_host = $params->get('smtp_host', '');
-        if ($smtp_host !== '') {
-            $smtp_port   = (int) $params->get('smtp_port', '25');
-            $smtp_secure = $params->get('smtp_secure', '');
-            $smtp_auth   = (bool) $params->get('smtp_auth', 0);
-
-            $objMail->isSMTP();
-            $objMail->Host       = $smtp_host;
-            $objMail->Port       = $smtp_port;
-            $objMail->SMTPSecure = $smtp_secure;
-            $objMail->SMTPAuth   = $smtp_auth;
-
-            if ($smtp_auth) {
-                $objMail->Username = $params->get('smtp_user', '');
-                $objMail->Password = $params->get('smtp_pass', '');
+            if ($reply_to == '') {
+                $reply_to = $config->get('mailfrom');
             }
         }
-
-        // Use component's from address when set; otherwise fall back to global config
-        $mailfrom = $params->get('mailfrom', '');
-        $fromname = $params->get('fromname', '');
-        if ($mailfrom === '') {
-            $config   = Factory::getConfig();
-            $mailfrom = $config->get('mailfrom');
-            $fromname = $config->get('fromname');
-        }
-
-        $sender = [$mailfrom, $fromname];
-        if ($reply_to === '') {
-            $reply_to = $mailfrom;
-        }
-
+//        var_dump($attachments);
+//        echo '<br>';
+//        die('sending to ' . $to);
         $objMail->setSender($sender);
         $objMail->addRecipient($to);
         $objMail->addReplyTo($reply_to);
@@ -910,11 +897,36 @@ class Mailhelper {
         $objMail->setSubject($subject);
         $objMail->setBody($body);
 
-        if ($attachments !== '') {
+        //       echo $body;
+        //       die('MailHelper');
+//      Optional file attachment(s) - should be an array
+        if ($attachments != '') {
             $objMail->addAttachment($attachments);
         }
+        // debug code for development - echo writes to a buffer that is not actually displayed
+//        if (1) {
+        if ((substr(JPATH_ROOT, 14, 6) == 'joomla') OR (substr(JPATH_ROOT, 14, 6) == 'MAMP/h')) {  // Development
+            $this->message .= $to . ' ';
+            echo "To: <b>$to</b><br>";
+            echo "Reply_to: <b>$reply_to</b><br>";
+            echo "Subject: <b>$subject</b><br>";
+            echo $body;
+            if ($attachments != '') {
+                echo "<br>";
+                echo "Attachment: <b>$attachments</b><br>";
+            }
+            die('MailHelper');
+            return true;
+        } else {
+            $send = $objMail->Send();
 
-        return $objMail->Send();
+//        if ($send !== true) {
+//            $this->logEmail("ME", 'Error sending email: ' . $to);
+//        } else {
+//            $this->logEmail("MS", $to);
+//        }
+            return $send;
+        }
     }
 
     public function sendEmails($mailshot_id) { // before version 4.5.1, this was function send

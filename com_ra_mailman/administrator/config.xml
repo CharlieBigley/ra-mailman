@@ -173,70 +173,14 @@
                hint="28"/>
     </fieldset>
     <fieldset label="SMTP Override" name="smtp_override_settings">
-        <field name="note_smtp" type="note" label="When enabled, these settings override the Joomla Global Configuration SMTP settings for all emails sent by this component."/>
+        <field name="note_smtp" type="note" label="When enabled, the SMTP username and password below will override the credentials defined in the Joomla Global Configuration. All other mail settings (host, port, security) remain as configured globally."/>
         <field
             name="smtp_override"
             type="radio"
-            label="Override global SMTP settings"
-            description="Enable to use the SMTP settings below instead of the Joomla Global Configuration mail settings"
+            label="Override SMTP credentials"
+            description="Enable to use the username and password below instead of the Joomla Global Configuration SMTP credentials"
             default="0"
             layout="joomla.form.field.radio.switcher"
-            >
-            <option value="0">JNO</option>
-            <option value="1">JYES</option>
-        </field>
-        <field name="mailfrom"
-               maxlength="255"
-               filter="email"
-               type="email"
-               label="From email address"
-               description="Email address used as the sender. If blank, the Joomla Global Configuration value is used."
-               showon="smtp_override:1"
-               hint="noreply@example.org"/>
-        <field name="fromname"
-               maxlength="255"
-               filter="safehtml"
-               type="text"
-               label="From name"
-               description="Name used as the sender. If blank, the Joomla Global Configuration value is used."
-               showon="smtp_override:1"
-               hint="My Ramblers Group"/>
-        <field name="smtp_host"
-               maxlength="255"
-               filter="safehtml"
-               type="text"
-               label="SMTP host"
-               description="Hostname or IP address of the SMTP server. If blank, the Joomla Global Configuration SMTP host is used."
-               showon="smtp_override:1"
-               hint="smtp.example.org"/>
-        <field name="smtp_port"
-               type="text"
-               filter="int"
-               label="SMTP port"
-               description="Port number of the SMTP server (typically 25, 465 or 587)"
-               default="25"
-               showon="smtp_override:1"
-               hint="25"/>
-        <field
-            name="smtp_secure"
-            type="list"
-            label="SMTP security"
-            description="Security protocol used when connecting to the SMTP server"
-            default=""
-            showon="smtp_override:1"
-            >
-            <option value="">None</option>
-            <option value="ssl">SSL</option>
-            <option value="tls">TLS</option>
-        </field>
-        <field
-            name="smtp_auth"
-            type="radio"
-            label="SMTP authentication"
-            description="Enable if your SMTP server requires a username and password"
-            default="0"
-            layout="joomla.form.field.radio.switcher"
-            showon="smtp_override:1"
             >
             <option value="0">JNO</option>
             <option value="1">JYES</option>
@@ -247,14 +191,14 @@
                type="text"
                label="SMTP username"
                description="Username for SMTP authentication"
-               showon="smtp_override:1[AND]smtp_auth:1"
+               showon="smtp_override:1"
                hint="smtpuser@example.org"/>
         <field name="smtp_pass"
                maxlength="255"
                type="password"
                label="SMTP password"
                description="Password for SMTP authentication"
-               showon="smtp_override:1[AND]smtp_auth:1"/>
+               showon="smtp_override:1"/>
     </fieldset> 
     <fieldset name="permissions" description="JCONFIG_PERMISSIONS_DESC" label="JCONFIG_PERMISSIONS_LABEL">
         <field name="rules" 
