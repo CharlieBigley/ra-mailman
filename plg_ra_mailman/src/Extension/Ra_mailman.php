@@ -1,12 +1,14 @@
 <?php
 
 /**
- * @package     Ramblers.Walks
- * @subpackage  System.ra_mailman
+ * @version    1.0.8
+ * @package    plg_ra_mailman
+ * @author     Charlie Bigley <webmaster@bigley.me.uk>
+ * @copyright  2026 Charlie Bigley
+ * @license    GNU General Public License version 2 or later; see LICENSE.txt
  *
- * @copyright   (C) 2024 Charlie Bigley
- * @license     GNU General Public License version 2 or later; see LICENSE.txt
  * 08/08/25 CB created
+ * 08/04/26 CB added loadusers command
  */
 
 namespace Ramblers\Plugin\System\Ra_mailman\Extension;
@@ -16,6 +18,7 @@ namespace Ramblers\Plugin\System\Ra_mailman\Extension;
 
 use Joomla\CMS\Factory;
 use Joomla\CMS\Plugin\CMSPlugin;
+use Ramblers\Plugin\System\Ra_mailman\Command\LoadusersCommand;
 use Ramblers\Plugin\System\Ra_mailman\Command\SendemailsCommand;
 
 class Ra_mailman extends CMSPlugin {
@@ -43,6 +46,9 @@ class Ra_mailman extends CMSPlugin {
     public function registerCLICommands() {
 
         $commandObject = new SendemailsCommand;
+        $this->app->addCommand($commandObject);
+
+        $commandObject = new LoadusersCommand;
         $this->app->addCommand($commandObject);
     }
 

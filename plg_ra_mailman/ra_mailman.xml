@@ -9,8 +9,8 @@
 <extension type="plugin" group="console" method="upgrade">
 	<name>plg_system_ra_mailman</name>
 	<description>Ramblers plugin to send outstanding emails</description>
-	<version>1.0.7</version>
-	<creationDate>17 Oct 2025</creationDate>
+	<version>1.0.9</version>
+	<creationDate>10 Apr 2026</creationDate>
 	<author>Charlie Bigley</author>
     <authorEmail>webmaster@bigley.me.uk</authorEmail>
     <authorUrl>staffordshireramblers.org.uk</authorUrl>
