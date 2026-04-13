@@ -38,132 +38,6 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
     private $item = null;
 
     /**
-     * Method to auto-populate the model state.
-     *
-     * Note. Calling getState in this method will result in recursion.
-     *
-     * @return  void
-     *
-     * @since   1.0.2
-     *
-     * @throws  Exception
-     */
-    protected function populateState() {
-        $app = Factory::getApplication('com_ra_mailman');
-
-        // Load state from the request userState on edit or from the passed variable on default
-        if (Factory::getApplication()->input->get('layout') == 'edit') {
-            $id = Factory::getApplication()->getUserState('com_ra_mailman.edit.mailshot.id');
-        } else {
-            $id = Factory::getApplication()->input->get('id');
-            Factory::getApplication()->setUserState('com_ra_mailman.edit.mailshot.id', $id);
-        }
-
-        $this->setState('mailshot.id', $id);
-
-        // Load the parameters.
-        $params = $app->getParams();
-        $params_array = $params->toArray();
-
-        if (isset($params_array['item_id'])) {
-            $this->setState('mailshot.id', $params_array['item_id']);
-        }
-
-        $this->setState('params', $params);
-    }
-
-    /**
-     * Method to get an ojbect.
-     *
-     * @param   integer $id The id of the object to get.
-     *
-     * @return  Object|boolean Object on success, false on failure.
-     *
-     * @throws  Exception
-     */
-    public function getItem($id = null) {
-        if ($this->item === null) {
-            $this->item = false;
-
-            if (empty($id)) {
-                $id = $this->getState('mailshot.id');
-            }
-
-            // Get a level row instance.
-            $table = $this->getTable();
-            $properties = $table->getProperties();
-            $this->item = ArrayHelper::toObject($properties, CMSObject::class);
-
-            if ($table !== false && $table->load($id) && !empty($table->id)) {
-                $user = $this->getCurrentUser();
-                $id = $table->id;
-                $app = Factory::getApplication();
-                $list_id = $app->input->getInt('list_id', '0');
-                $mailHelper = new Mailhelper;
-                if ($mailHelper->isAuthor($list_id)) {
-                    $canEdit = true;
-                } else {
-                    $canEdit = $user->authorise('core.edit', 'com_ra_mailman') || $user->authorise('core.create', 'com_ra_mailman');
-
-                    if (!$canEdit && $user->authorise('core.edit.own', 'com_ra_mailman')) {
-                        $canEdit = $user->id == $table->created_by;
-                    }
-                }
-                if (!$canEdit) {
-                    throw new \Exception(Text::_('JERROR_ALERTNOAUTHOR'), 403);
-                }
-
-                // Check published state.
-                if ($published = $this->getState('filter.published')) {
-                    if (isset($table->state) && $table->state != $published) {
-                        return $this->item;
-                    }
-                }
-
-                // Convert the Table to a clean CMSObject.
-                $properties = $table->getProperties(1);
-                $this->item = ArrayHelper::toObject($properties, CMSObject::class);
-            }
-        }
-
-        return $this->item;
-    }
-
-    /**
-     * Method to get the table
-     *
-     * @param   string $type   Name of the Table class
-     * @param   string $prefix Optional prefix for the table class name
-     * @param   array  $config Optional configuration array for Table object
-     *
-     * @return  Table|boolean Table if found, boolean false on failure
-     */
-    public function getTable($type = 'Mailshot', $prefix = 'Administrator', $config = array()) {
-        return parent::getTable($type, $prefix, $config);
-    }
-
-    /**
-     * Get an item by alias
-     *
-     * @param   string $alias Alias string
-     *
-     * @return int Element id
-     */
-    public function getItemIdByAlias($alias) {
-        $table = $this->getTable();
-        $properties = $table->getProperties();
-
-        if (!in_array('alias', $properties)) {
-            return null;
-        }
-
-        $table->load(array('alias' => $alias));
-        $id = $table->id;
-
-        return $id;
-    }
-
-    /**
      * Method to check in an item.
      *
      * @param   integer $id The id of the row to check out.
@@ -222,6 +96,123 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
         return true;
     }
 
+      /**
+     * Method to delete data
+     *
+     * @param   int $pk Item primary key
+     *
+     * @return  int  The id of the deleted item
+     *
+     * @throws  Exception
+     *
+     * @since   1.0.2
+     */
+    public function delete($id) {
+        $user = $this->getCurrentUser();
+
+        if (empty($id)) {
+            $id = (int) $this->getState('mailshot.id');
+        }
+
+        if ($id == 0 || $this->getItem($id) == null) {
+            throw new \Exception(Text::_('COM_RA_MAILMAN_ITEM_DOESNT_EXIST'), 404);
+        }
+
+        if ($user->authorise('core.delete', 'com_ra_mailman') !== true) {
+            throw new \Exception(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+        }
+
+        $table = $this->getTable();
+
+        if ($table->delete($id) !== true) {
+            throw new \Exception(Text::_('JERROR_FAILED'), 501);
+        }
+
+        return $id;
+    }
+
+    /**
+     * Method to get an object.
+     *
+     * @param   integer $id The id of the object to get.
+     *
+     * @return  Object|boolean Object on success, false on failure.
+     *
+     * @throws  Exception
+     */
+    public function getItem($id = null) {
+        if ($this->item === null) {
+            $this->item = false;
+
+            if (empty($id)) {
+                $id = $this->getState('mailshot.id');
+            }
+
+            // Get a level row instance.
+            $table = $this->getTable();
+            $properties = $table->getProperties();
+            $this->item = ArrayHelper::toObject($properties, CMSObject::class);
+
+            if ($table !== false && $table->load($id) && !empty($table->id)) {
+                $user = $this->getCurrentUser();
+                $id = $table->id;
+                $app = Factory::getApplication();
+                $list_id = $app->input->getInt('list_id', '0');
+                $mailHelper = new Mailhelper;
+                if ($mailHelper->isAuthor($list_id)) {
+                    $canEdit = true;
+                } else {
+                    $canEdit = $user->authorise('core.edit', 'com_ra_mailman') || $user->authorise('core.create', 'com_ra_mailman');
+
+                    if (!$canEdit && $user->authorise('core.edit.own', 'com_ra_mailman')) {
+                        $canEdit = $user->id == $table->created_by;
+                    }
+                }
+                if (!$canEdit) {
+                    throw new \Exception(Text::_('JERROR_ALERTNOAUTHOR'), 403);
+                }
+
+                // Check published state.
+                if ($published = $this->getState('filter.published')) {
+                    if (isset($table->state) && $table->state != $published) {
+                        return $this->item;
+                    }
+                }
+
+                // Convert the Table to a clean CMSObject.
+                $properties = $table->getProperties(1);
+                $this->item = ArrayHelper::toObject($properties, CMSObject::class);
+
+                if (!empty($this->item->attachment) && is_string($this->item->attachment)) {
+                    $this->item->attachment = array_values(array_filter(array_map('trim', explode(',', $this->item->attachment))));
+                }
+            }
+        }
+
+        return $this->item;
+    }
+
+    /**
+     * Get an item by alias
+     *
+     * @param   string $alias Alias string
+     *
+     * @return int Element id
+     */
+    public function getItemIdByAlias($alias) {
+        $table = $this->getTable();
+        $properties = $table->getProperties();
+
+        if (!in_array('alias', $properties)) {
+            return null;
+        }
+
+        $table->load(array('alias' => $alias));
+        $id = $table->id;
+
+        return $id;
+    }
+
     /**
      * Method to get the profile form.
      *
@@ -248,8 +239,8 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
         if (empty($form)) {
             return false;
         }
-        // Set value of list_id from input
-        $form->setFieldAttribute('mail_list_id', 'default', $list_id);
+        // Set value of event_id from input
+        $form->setFieldAttribute('event_id', 'default', $event_id);
 
         // Hide audit fields for new record
         $id = $form->getvalue('id');
@@ -270,6 +261,20 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
         return $form;
     }
 
+
+    /**
+     * Method to get the table
+     *
+     * @param   string $type   Name of the Table class
+     * @param   string $prefix Optional prefix for the table class name
+     * @param   array  $config Optional configuration array for Table object
+     *
+     * @return  Table|boolean Table if found, boolean false on failure
+     */
+    public function getTable($type = 'Mailshot', $prefix = 'Administrator', $config = array()) {
+        return parent::getTable($type, $prefix, $config);
+    }
+
     /**
      * Method to get the data that should be injected in the form.
      *
@@ -284,13 +289,47 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
         }
 
         if ($data) {
-
-
             return $data;
         }
 
         return array();
     }
+
+        /**
+     * Method to auto-populate the model state.
+     *
+     * Note. Calling getState in this method will result in recursion.
+     *
+     * @return  void
+     *
+     * @since   1.0.2
+     *
+     * @throws  Exception
+     */
+    protected function populateState() {
+        $app = Factory::getApplication('com_ra_mailman');
+
+        // Load state from the request userState on edit or from the passed variable on default
+        if (Factory::getApplication()->input->get('layout') == 'edit') {
+            $id = Factory::getApplication()->getUserState('com_ra_mailman.edit.mailshot.id');
+        } else {
+            $id = Factory::getApplication()->input->get('id');
+            Factory::getApplication()->setUserState('com_ra_mailman.edit.mailshot.id', $id);
+        }
+
+        $this->setState('mailshot.id', $id);
+
+        // Load the parameters.
+        $params = $app->getParams();
+        $params_array = $params->toArray();
+
+        if (isset($params_array['item_id'])) {
+            $this->setState('mailshot.id', $params_array['item_id']);
+        }
+
+        $this->setState('params', $params);
+    }
+
 
     /**
      * Method to save the form data.
@@ -345,41 +384,7 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
         }
     }
 
-    /**
-     * Method to delete data
-     *
-     * @param   int $pk Item primary key
-     *
-     * @return  int  The id of the deleted item
-     *
-     * @throws  Exception
-     *
-     * @since   1.0.2
-     */
-    public function delete($id) {
-        $user = $this->getCurrentUser();
-
-        if (empty($id)) {
-            $id = (int) $this->getState('mailshot.id');
-        }
-
-        if ($id == 0 || $this->getItem($id) == null) {
-            throw new \Exception(Text::_('COM_RA_MAILMAN_ITEM_DOESNT_EXIST'), 404);
-        }
-
-        if ($user->authorise('core.delete', 'com_ra_mailman') !== true) {
-            throw new \Exception(Text::_('JERROR_ALERTNOAUTHOR'), 403);
-        }
-
-        $table = $this->getTable();
-
-        if ($table->delete($id) !== true) {
-            throw new \Exception(Text::_('JERROR_FAILED'), 501);
-        }
-
-        return $id;
-    }
-
+  
     /**
      * Check if data can be saved
      *

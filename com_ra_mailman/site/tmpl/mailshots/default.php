@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.2.0
+ * @version    4.6.4
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -11,6 +11,7 @@
  * 27/05/24 CB only show recipients if Author or superuser
  * 14/10/24 CB show link(s) to attachments(s)
  * 12/02/25 CB set up $this->user from getCurrentUser
+ * 16/03/26 CB filter by group if not full_version
  */
 // No direct access
 defined('_JEXEC') or die;
@@ -40,14 +41,22 @@ $wa = $this->document->getWebAssetManager();
 $wa->registerAndUseStyle('com_ra_tools', 'ramblers.css');
 
 $show_recipients = false;
-$objHelper = new ToolsHelper;
-$objMailHelper = new Mailhelper;
+//$objHelper = new ToolsHelper;
+
 if ($userId == true) {
-    if (($objHelper->isSuperuser()) or ($objMailhelper->isAuthor == true)) {
+    if (($this->toolsHelper->isSuperuser()) or ($this->mailHelper->isAuthor == true)) {
         $show_recipients = true;
     }
 }
-echo '<h2>Mailshots for ' . $this->group_code . ' ' . $this->list_name . '</h2>';
+if ($this->list_id >'0') {
+    echo '<h2>Mailshots for ' . $this->group_code . ' ' . $this->list_name . '</h2>';
+} else {
+    if ($this->group !== 'N') {
+        echo '<h2>Mailshots for ' . $this->toolsHelper->lookupGroup($this->group) . '</h2>';
+    } else {        
+        echo '<h2>Mailshots for all lists</h2>';    
+    }
+}
 ?>
 
 <form action="<?php echo htmlspecialchars(Uri::getInstance()->toString()); ?>" method="post"
@@ -61,6 +70,9 @@ echo '<h2>Mailshots for ' . $this->group_code . ' ' . $this->list_name . '</h2>'
     echo '<thead>' . PHP_EOL;
     echo '<tr>' . PHP_EOL;
     echo '<th class="left">' . HTMLHelper::_('searchtools.sort', 'Sent<br>Started', 'a.date_sent', $listDirn, $listOrder) . '</th>';
+    if ($this->list_id == '0') {
+        echo '<th class="left">' . HTMLHelper::_('searchtools.sort', 'List', 'mail_list.name', $listDirn, $listOrder) . '</th>';
+    }   
     echo '<th class="left">' . HTMLHelper::_('searchtools.sort', 'Title', 'a.title', $listDirn, $listOrder) . '</th>';
     echo '<th class="left">Details</th>';
     echo '<th class="left"><span class="icon-paperclip"></span></th>';
@@ -80,10 +92,14 @@ echo '<h2>Mailshots for ' . $this->group_code . ' ' . $this->list_name . '</h2>'
             echo '<br>' . HTMLHelper::_('date', $item->processing_started, 'H:i d/m/y');
         }
         echo '</td>' . PHP_EOL;
+        //if (($this->list_id > '0') or ($this->group !== 'N')) {
+        if ($this->list_id == '0')  {
+            echo '<td style="vertical-align: top">' . $item->list_name . '</td>' . PHP_EOL;
+        }
         echo '<td style="vertical-align: top">';
         $link = 'index.php?option=com_ra_mailman&task=mailshot.showMailshot&id=' . $item->id . '&tmpl=component';
         $link .= '&Itemid=' . $this->menu_id;
-        echo $this->objHelper->buildLink($link, $item->title);
+        echo $this->toolsHelper->buildLink($link, $item->title);
         echo '</td>' . PHP_EOL;
 
         echo '<td class = "item-details">';
@@ -91,7 +107,7 @@ echo '<h2>Mailshots for ' . $this->group_code . ' ' . $this->list_name . '</h2>'
           if (strlen($item->full_details) > $this->max_chars) {
           $details = strip_tags($item->full_details);
           echo substr($item->full_details, 0, $this->max_chars);
-          echo $objHelper->buildLink($link, 'Read more', True, 'readmore');
+          echo $this->toolsHelper->buildLink($link, 'Read more', True, 'readmore');
           } else {
           echo $item->full_details;
           }
@@ -100,7 +116,7 @@ echo '<h2>Mailshots for ' . $this->group_code . ' ' . $this->list_name . '</h2>'
             echo strip_tags(substr($item->body, 0, $this->max_chars)) . ' ....';
             $details = strip_tags($item->body);
             echo substr($details, 0, $this->max_chars);
-            echo $this->objHelper->buildLink($link, 'Read more', True, 'readmore');
+            echo $this->toolsHelper->buildLink($link, 'Read more', True, 'readmore');
         } else {
             echo rtrim($item->body) . PHP_EOL;
         }
@@ -110,18 +126,18 @@ echo '<h2>Mailshots for ' . $this->group_code . ' ' . $this->list_name . '</h2>'
         if ($item->attachment != '') {
             $attach_array = explode(',', $item->attachment);
             foreach ($attach_array as $file) {
-                echo $objHelper->buildLink('images/com_ra_mailman/' . $file, $file, true) . '<br>';
+                echo $this->toolsHelper->buildLink('images/com_ra_mailman/' . $file, $file, true) . '<br>';
             }
         }
         echo '</td>';
 
         echo '<td style="vertical-align: top">';
-        $count = $this->objHelper->getValue('SELECT COUNT(id) FROM #__ra_mail_recipients WHERE mailshot_id=' . $item->id);
+        $count = $this->toolsHelper->getValue('SELECT COUNT(id) FROM #__ra_mail_recipients WHERE mailshot_id=' . $item->id);
         if ($count > 0) {
             if ($show_recipients) {
                 $target = 'index.php?option=com_ra_mailman&task=mailshot.showRecipients&list_id=' . $this->list_id . '&id=' . $item->id;
                 $target .= '&Itemid=' . $this->menu_id;
-                echo $this->objHelper->buildLink($target, $count);
+                echo $this->toolsHelper->buildLink($target, $count);
             } else {
                 echo $count;
             }
@@ -145,6 +161,8 @@ echo '<h2>Mailshots for ' . $this->group_code . ' ' . $this->list_name . '</h2>'
 
 <?php
 echo $this->pagination->getPagesLinks();
-$back = 'index.php?option=com_ra_mailman&view=mail_lsts&Itemid=' . $this->menu_id;
-echo $this->objHelper->backButton($back);
+ if ($this->list_id >'0') {
+    $back = 'index.php?option=com_ra_mailman&view=mail_lsts&Itemid=' . $this->menu_id;
+    echo $this->toolsHelper->backButton($back);
+ }
 ?>

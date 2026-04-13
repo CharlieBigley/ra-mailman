@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.4.13
+ * @version    4.6.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <charlie@bigley.me.uk>
  * @copyright  2025 Charlie Bigley
@@ -119,6 +119,7 @@ class SubscriptionsModel extends ListModel {
      */
     protected function getListQuery() {
         // See if we are running the full version
+        $toolsHelper = new ToolsHelper;
         $mailHelper = new MailHelper;
         $group = $mailHelper->getDefaultGroup();
         // Create a new query object.
@@ -160,8 +161,8 @@ class SubscriptionsModel extends ListModel {
         } elseif (empty($published)) {
             $query->where('(a.state IN (0, 1))');
         }
-        if ($group !== 'N') {
-            $query->where('l.group_code=' . $db->quote($group));
+        if (($group !== 'N') AND ($toolsHelper->isSuperuser() === false)) {
+            $query->where('l.group_code=' . $this->_db->quote($group));
         }
         $search_fields = array(
             'l.group_code',

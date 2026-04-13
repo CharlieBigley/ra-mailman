@@ -1,13 +1,14 @@
 <?php
 
 /**
- * @version    4.5.8
+ * @version    4.6.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
  * 11/11/2025 CB created
  * 15/11/25 CB correct filter by mail list
+ * 16/03/26 CB filter by group if not full_version
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -22,6 +23,7 @@ use \Joomla\CMS\Language\Text;
 use \Joomla\CMS\Helper\TagsHelper;
 use \Joomla\Database\ParameterType;
 use \Joomla\Utilities\ArrayHelper;
+use Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
@@ -118,6 +120,11 @@ class RecipientsModel extends ListModel {
      * @since   1.0.2
      */
     protected function getListQuery() {
+        // See if we are running the full version
+        $toolsHelper = new ToolsHelper;
+        $mailHelper = new MailHelper;
+        $group = $mailHelper->getDefaultGroup();
+
         // list_id may have been passed as a parameter to identify the mailing list being queried
         $this->list_id = Factory::getApplication()->input->getInt('list_id', 0);
 
@@ -142,6 +149,9 @@ class RecipientsModel extends ListModel {
         }
         if ($this->list_id !== '0') {
             $query->where('m.mail_list_id = ' . $this->list_id);
+        }
+        if (($group !== 'N') AND ($toolsHelper->isSuperuser() === false)) {
+            $query->where('mail_list.group_code=' . $this->_db->quote($group));
         }
         // Search for this word
         $searchWord = $this->getState('filter.search');

@@ -224,6 +224,9 @@ class MailshotModel extends AdminModel implements CurrentUserInterface {
             }
 
             // Do any procesing on fields here if needed
+            if (!empty($item->attachment) && is_string($item->attachment)) {
+                $item->attachment = array_values(array_filter(array_map('trim', explode(',', $item->attachment))));
+            }
         }
 
         return $item;

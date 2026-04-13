@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.5.8
+ * @version    4.6.4
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -122,6 +122,7 @@ class MailshotsModel extends ListModel {
         // list_id will have been passed as a parameter to identify the mailing list being queried
         $this->list_id = Factory::getApplication()->input->getInt('list_id', 0);
         // See if we are running the full version
+        $toolsHelper = new ToolsHelper;
         $mailHelper = new MailHelper;
         $group = $mailHelper->getDefaultGroup();
 
@@ -130,8 +131,7 @@ class MailshotsModel extends ListModel {
         $query = $db->getQuery(true);
 
         $query->select('a.*');
-        $query->from('`#__ra_mail_shots` AS a');
-
+        $query->from('`#__ra_mail_shots` AS a');  
         $query->select('mail_list.name AS `list_name`');
         $query->leftJoin($this->_db->qn('#__ra_mail_lists') . ' AS `mail_list` ON mail_list.id = a.mail_list_id');
 
@@ -140,8 +140,8 @@ class MailshotsModel extends ListModel {
             $query->where($this->_db->qn('a.mail_list_id') . ' = ' . $this->_db->q($this->list_id));
         }
 
-        if ($group !== 'N') {
-            $query->where('a.group_code=' . $db->quote($group));
+        if (($group !== 'N') AND ($toolsHelper->isSuperuser() === false)) {
+            $query->where('mail_list.group_code=' . $db->quote($group));
         }
 
         // Search for this word

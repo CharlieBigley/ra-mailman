@@ -1,18 +1,11 @@
 # 8 files in total
-# 31/05/23 created
-# 09/06/23 mail_access
-# 20/06/23 subscriptions / reminder_sent
-# 01/08/23 remove category_id from mail_lists and mailshots, defauly group_primary to Null
-# 08/08/23 delete record_type from mailshots
-# 11/08/23 Mailshots: date_sent & processing_started to DATETIME
-# 06/09/23 include logfile 14/11/23 CB remove reference to author_id
-# 14/11/23 remove mailshots/author_id
 # 11/09/24 CB remove mailshot / ordering
 # 19/10/24 CB add clusters/groups
 # 03/02/25 CB set defaults for ra_profiles home_group & preferred_name
 # 01/06/25 CB add ra_import_reports, remove clusters & groups
 # 16/06/25 CB added table ra_emails
 # 20/10/25 CB added mail_lists / emails_outstanding
+# 30/03/26 CB mailshots: add record_type and event_id
 CREATE TABLE IF NOT EXISTS `#__ra_emails` (
     `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
     `sub_system` VARCHAR(10)  NULL  DEFAULT "",
@@ -134,7 +127,9 @@ CREATE TABLE IF NOT EXISTS `#__ra_mail_recipients` (
 # ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `#__ra_mail_shots` (
 	`id` INT NOT NULL AUTO_INCREMENT,
-	`mail_list_id` INT NOT NULL,
+	`record_type` VARCHAR(1) DEFAULT "M" NOT NULL,
+        `mail_list_id` INT NULL,
+        `event_id` INT NULL,
         `title` VARCHAR(255) NOT NULL,
         `body` longtext NOT NULL,
         `final_message` longtext,
@@ -148,6 +143,7 @@ CREATE TABLE IF NOT EXISTS `#__ra_mail_shots` (
 	`modified_by`INT NULL DEFAULT "0",
     PRIMARY KEY (`id`),
     INDEX idx_mail_list_id(mail_list_id),
+    INDEX idx_event_id(event_id),
     INDEX idx_created_by(created_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
 # ------------------------------------------------------------------------------
@@ -183,5 +179,29 @@ CREATE TABLE IF NOT EXISTS `#__ra_mail_subscriptions_audit` (
     PRIMARY KEY (`id`),
     INDEX idx_object_id(object_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_unicode_ci;
+# ------------------------------------------------------------------------------
+# initially, only required for corporate mailman system
+# may be installed by ra_tools
+CREATE TABLE IF NOT EXISTS `#__ra_organisations` (
+  `id` int(10) UNSIGNED NOT NULL,
+  `record_type` char(1) NOT NULL DEFAULT 'A',
+  `code` varchar(4) NOT NULL,
+  `nation_id` INT  NULL DEFAULT 1,
+  `cluster` varchar(3)  NULL,
+  `name` varchar(100) NOT NULL,
+  `details` mediumtext NOT NULL,
+  `website` varchar(150) NOT NULL,
+  `co_url` varchar(150) NOT NULL,
+  `latitude` decimal(10,8) NOT NULL,
+  `longitude` decimal(14,12) NOT NULL,
+  `logo` varchar(50) NOT NULL,
+  `logo_align` varchar(10) NOT NULL,
+  `email_header` varchar(50) DEFAULT NULL,
+  `colour_header` varchar(24) DEFAULT NULL,
+  `colour_body` varchar(24) NOT NULL,
+  `colour_footer` varchar(24) DEFAULT NULL,
+  `welcome_letter` text,
+  `reminder_letter` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 # ------------------------------------------------------------------------------
 # Emails, Logfile and Profiles are required, but are installed by com_ra_tools

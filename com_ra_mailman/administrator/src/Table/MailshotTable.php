@@ -107,15 +107,7 @@ class MailshotTable extends Table implements VersionableTableInterface, Taggable
             $array['created_by'] = $user->id;
         }
         // Support for multi file field: attachment
-        if (!empty($array['attachment'])) {
-            if (is_array($array['attachment'])) {
-                $array['attachment'] = implode(',', $array['attachment']);
-            } elseif (strpos($array['attachment'], ',') != false) {
-                $array['attachment'] = explode(',', $array['attachment']);
-            }
-        } else {
-            $array['attachment'] = '';
-        }
+        $array['attachment'] = implode(',', $this->normaliseAttachmentNames($array['attachment'] ?? ''));
 
         if (isset($array['params']) && is_array($array['params'])) {
             $registry = new Registry;
@@ -210,27 +202,15 @@ class MailshotTable extends Table implements VersionableTableInterface, Taggable
         $app = Factory::getApplication();
         $files = $app->input->files->get('jform', array(), 'raw');
         $array = $app->input->get('jform', array(), 'ARRAY');
-        if (empty($files['attachment'][0])) {
-            $temp = $files;
-            $files = array();
-            $files['attachment'][] = $temp['attachment'];
-        }
+        $existingAttachments = $this->normaliseAttachmentNames($array['attachment_hidden'] ?? $this->attachment ?? '');
+        $uploadedFiles = $this->normaliseUploadedFiles($files['attachment'] ?? array());
+        $this->attachment = implode(',', $existingAttachments);
 
-        if ($files['attachment'][0]['size'] > 0) {
-// Deleting existing files
-            $oldFiles = ToolsHelper::getFiles($this->id, $this->_tbl, 'attachment');
-
-            foreach ($oldFiles as $f) {
-                $oldFile = $this->image_path . $f;
-
-                if (file_exists($oldFile) && !is_dir($oldFile)) {
-                    unlink($oldFile);
-                }
+        foreach ($uploadedFiles as $singleFile) {
+            if ((int) ($singleFile['error'] ?? 4) === 4 || (int) ($singleFile['size'] ?? 0) === 0) {
+                continue;
             }
 
-            $this->attachment = "";
-
-            foreach ($files['attachment'] as $singleFile) {
                 jimport('joomla.filesystem.file');
 
 // Check if the server found any error.
@@ -254,10 +234,6 @@ class MailshotTable extends Table implements VersionableTableInterface, Taggable
                         $app->enqueueMessage($message, 'warning');
 
                         return false;
-                    }
-                } elseif ($fileError == 4) {
-                    if (isset($array['attachment'])) {
-                        $this->attachment = $array['attachment'];
                     }
                 } else {
 
@@ -289,15 +265,67 @@ class MailshotTable extends Table implements VersionableTableInterface, Taggable
                         }
                     }
 
-                    $this->attachment .= (!empty($this->attachment)) ? "," : "";
-                    $this->attachment .= $filename;
+                    if (!in_array($filename, $existingAttachments, true)) {
+                        $existingAttachments[] = $filename;
+                    }
                 }
-            }
-        } else {
-            $this->attachment .= $array['attachment_hidden'];
         }
 
+        $this->attachment = implode(',', $existingAttachments);
+
         return parent::check();
+    }
+
+    private function normaliseAttachmentNames($attachments) {
+        if (empty($attachments)) {
+            return array();
+        }
+
+        if (is_string($attachments)) {
+            $attachments = explode(',', $attachments);
+        }
+
+        if (!is_array($attachments)) {
+            return array();
+        }
+
+        $attachments = array_filter(array_map(function ($attachment) {
+            return is_string($attachment) ? trim($attachment) : '';
+        }, $attachments));
+
+        return array_values(array_unique($attachments));
+    }
+
+    private function normaliseUploadedFiles($attachmentFiles) {
+        if (empty($attachmentFiles)) {
+            return array();
+        }
+
+        if (isset($attachmentFiles['name']) && !is_array($attachmentFiles['name'])) {
+            return array($attachmentFiles);
+        }
+
+        if (isset($attachmentFiles[0]) && is_array($attachmentFiles[0])) {
+            return $attachmentFiles;
+        }
+
+        if (!isset($attachmentFiles['name']) || !is_array($attachmentFiles['name'])) {
+            return array();
+        }
+
+        $normalisedFiles = array();
+
+        foreach ($attachmentFiles['name'] as $index => $name) {
+            $normalisedFiles[] = array(
+                'name' => $name,
+                'type' => $attachmentFiles['type'][$index] ?? '',
+                'tmp_name' => $attachmentFiles['tmp_name'][$index] ?? '',
+                'error' => $attachmentFiles['error'][$index] ?? 4,
+                'size' => $attachmentFiles['size'][$index] ?? 0,
+            );
+        }
+
+        return $normalisedFiles;
     }
 
     /**

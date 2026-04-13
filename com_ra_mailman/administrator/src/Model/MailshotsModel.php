@@ -123,6 +123,7 @@ class MailshotsModel extends ListModel {
         $this->list_id = Factory::getApplication()->input->getInt('list_id', 0);
         // See if we are running the full version
         $mailHelper = new MailHelper;
+        $toolsHelper = new ToolsHelper;
         $group = $mailHelper->getDefaultGroup();
 
         $query = $this->_db->getQuery(true);
@@ -154,8 +155,8 @@ class MailshotsModel extends ListModel {
             $query->where('a.mail_list_id = ' . $this->list_id);
         }
 
-        if ($group !== 'N') {
-            $query->where('a.group_code=' . $db->quote($group));
+        if (($group !== 'N') AND ($toolsHelper->isSuperuser() === false)) {
+            $query->where('mail_list.group_code=' . $this->_db->quote($group));
         }
         // Filter by status
         $status = $this->getState('filter.status');

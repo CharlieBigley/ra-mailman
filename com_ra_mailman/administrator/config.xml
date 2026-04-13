@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <config>
     <fieldset label="RA Mailman" name="ra_mailman">
+        <field
+            name="full_version"
+            type="radio"
+            label="Full version:"
+            description="Whether to use the full version of the software (for Group/Area sites) or a sub-set of functionality (for Central Office)"
+             default="Y"
+            >
+            <option value="Y">Full functionality for Group/Area site</option>
+            <option value="N">Sub-set of functionality for Central Office</option>
+        </field>      
         <field name="email_header" 
                editor="|" 
                buttons="true" 
@@ -107,7 +117,7 @@
             description="Background colour of the email footer"
         />
     </fieldset>
-    <fieldset label="Logo" name="logo">  
+    <fieldset label="Logo" name="logo">  *
         <field name="note1" type="note" label="If the file is found in folder /images/com_ra_mailman, it will be added to the top of each email."/>      
         <field name="logo_file"
                 type="text"

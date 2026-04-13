@@ -25,6 +25,9 @@ use Joomla\CMS\Language\Text;
 use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 use Joomla\CMS\MVC\Controller\FormController;
+use Joomla\CMS\Application\CMSApplication;
+use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
+use Joomla\Input\Input;
 use Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use Ramblers\Component\Ra_mailman\Site\Helpers\SubscriptionHelper;
 //use Ramblers\Component\Ra_mailman\Site\Helpers\UserHelper;
@@ -32,14 +35,21 @@ use Ramblers\Component\Ra_tools\Site\Helpers\SchemaHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\UserHelper;
 
-class SystemController extends FormController {
+class SystemController extends FormController
+{
 
     protected $back;
     protected $objApp;
     protected $toolsHelper;
 
-    public function __construct() {
-        parent::__construct();
+    public function __construct(
+        $config = [],
+        MVCFactoryInterface $factory = null,
+        CMSApplication $app = null,
+        Input $input = null
+    ) {
+        parent::__construct($config, $factory, $app, $input);
+
         $this->toolsHelper = new ToolsHelper;
         $this->objApp = Factory::getApplication();
         $this->back = 'administrator/index.php?option=com_ra_tools&view=dashboard';
@@ -130,7 +140,7 @@ class SystemController extends FormController {
         $sql .= 'WHERE (state =1) ';
         $sql .= 'AND (datediff(expiry_date, CURRENT_DATE) < 0) ';
 //        $sql .= ' AND (reminder_sent IS NULL) ';
-        $sql .= "AND (list_id=" . $list_id . ') ';
+        $sql .= 'AND (list_id="' . $list_id . '") ';
         $sql .= "ORDER BY user_id ";
 
 //        echo $sql . PHP_EOL;

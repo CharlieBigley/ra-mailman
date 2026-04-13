@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.5.4
+ * @version    4.6.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -35,6 +35,7 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
  */
 class Mail_lstsModel extends ListModel {
 
+protected $app;
     /**
      * Constructor.
      *
@@ -56,7 +57,7 @@ class Mail_lstsModel extends ListModel {
                 'a.home_group_only',
             );
         }
-
+        $this->app = Factory::getApplication();
         parent::__construct($config);
     }
 
@@ -78,15 +79,15 @@ class Mail_lstsModel extends ListModel {
         // List state information.
         parent::populateState('a.name', 'ASC');
 
-        $app = Factory::getApplication();
-        $list = $app->getUserState($this->context . '.list');
+        
+        $list = $this->app->getUserState($this->context . '.list');
 
-        $value = $app->getUserState($this->context . '.list.limit', $app->get('list_limit', 25));
+        $value = $this->app->getUserState($this->context . '.list.limit', $this->app->get('list_limit', 25));
         $list['limit'] = $value;
 
         $this->setState('list.limit', $value);
 
-        $value = $app->input->get('limitstart', 0, 'uint');
+        $value = $this->app->input->get('limitstart', 0, 'uint');
         $this->setState('list.start', $value);
 
         $ordering = $this->getUserStateFromRequest($this->context . '.filter_order', 'filter_order', 'a.description');
@@ -96,7 +97,7 @@ class Mail_lstsModel extends ListModel {
             $list['fullordering'] = $ordering . ' ' . $direction;
         }
 
-        $app->setUserState($this->context . '.list', $list);
+        $this->app->setUserState($this->context . '.list', $list);
 
         $context = $this->getUserStateFromRequest($this->context . '.filter.search', 'filter_search');
         $this->setState('filter.search', $context);
@@ -121,6 +122,7 @@ class Mail_lstsModel extends ListModel {
      */
     protected function getListQuery() {
         // See if we are running the full version
+        $toolsHelper = new ToolsHelper;
         $mailHelper = new MailHelper;
         $group = $mailHelper->getDefaultGroup();
         // Create a new query object.
@@ -136,8 +138,12 @@ class Mail_lstsModel extends ListModel {
         $query->leftJoin($this->_db->qn('#__ra_profiles') . ' AS `p` ON p.id = a.owner_id');
 
         $query->where('a.state = 1');
-        if ($group !== 'N') {
-            $query->where('a.group_code=' . $db->quote($group));
+        // For non full version, only show lists that the current User is allowed to use
+        if (($group !== 'N') AND ($toolsHelper->isSuperuser() === false)) {
+            $user = $this->app->getSession()->get('user');
+            $query->leftJoin(' #__ra_mail_subscriptions AS s ON s.list_id = a.id ');            
+            $query->where('s.record_type>1');
+            $query->where('s.user_id=' . $user->id);
         }
         // Search for this word
         $searchWord = $this->getState('filter.search');

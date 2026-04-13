@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.5.0
+ * @version    4.6.5
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -11,6 +11,7 @@
  * 30/07/25 search for ID: using helper
  * 08/08/25 CB SELECT all fields
  * 16/03/26 CB filter by group if not full_version
+ * 17/03/26 CB remove diagnostic display
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -122,12 +123,12 @@ class Mail_lstsModel extends ListModel {
      */
     protected function getListQuery() {
         // See if we are running the full version
+        $toolsHelper = new ToolsHelper;
         $mailHelper = new MailHelper;
         $group = $mailHelper->getDefaultGroup();
 
         // Create a new query object.
-        $db = $this->getDbo();
-        $query = $db->getQuery(true);
+        $query = $this->_db->getQuery(true);
 
         // Select the required fields from the table.
         $query->select('a.*');
@@ -146,8 +147,8 @@ class Mail_lstsModel extends ListModel {
         } elseif (empty($published)) {
             $query->where('(a.state IN (0, 1))');
         }
-        if ($group !== 'N') {
-            $query->where('a.group_code=' . $db->quote($group));
+        if (($group !== 'N') AND ($toolsHelper->isSuperuser() === false)) {
+            $query->where('a.group_code=' . $this->_db->quote($group));
         }
 
         // Filter by search in title
@@ -162,7 +163,7 @@ class Mail_lstsModel extends ListModel {
         $orderDirn = $this->state->get('list.direction', 'ASC');
 
         if ($orderCol && $orderDirn) {
-            $query->order($db->escape($orderCol . ' ' . $orderDirn));
+            $query->order($this->_db->escape($orderCol . ' ' . $orderDirn));
             if ($orderCol && $orderDirn) {
                 $query->order($this->_db->escape($orderCol . ' ' . $orderDirn));
                 if ($orderCol == 'a.group_code') {

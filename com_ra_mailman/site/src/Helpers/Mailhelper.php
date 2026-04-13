@@ -3,7 +3,7 @@
 /**
  * Contains functions used in the back end and the front end
  *
- * @version    4.5.6
+ * @version    4.6.6
  * @package    com_ra_mailman
  * @author     charles
 
@@ -17,7 +17,7 @@
  * 17/02/25 CB eliminate getUser
  * 09/03/25 CB correct message when unsubscribing
  * 03/04/25 CB correct isAuthor and lastMailshot
- * 05/04/25 CB use JPATH ROOT for attachments (otherwise does not work from Admin
+ * 05/04/25 CB use JPATH_ROOT for attachments (otherwise does not work from Admin)
  * 30/04/25 CB add logo to email header
  * 19/05/25 CB remove logo, check for duplicates when sending, don't append sender's email address
  * 31/05/25 CB show colours, warning if no subscribers, correct restart, X on behalf of Y
@@ -29,12 +29,14 @@
  * 25/02/26 CB restructured buildMessage to build the email as a whole, with header and footer,
  *             so that the event invitation can be included in the correct place
  * 16/03/26 CB changes for sub-set
+ * 19/03/26 CB Deleted sendEmail (always used ToolsHelper->sendEmail)
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Helpers;
 
 use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
+use Joomla\CMS\Helper\ContentHelper;
 use Joomla\CMS\HTML\HTMLHelper;
 use Joomla\CMS\Object\CMSObject;
 use Joomla\CMS\Uri\Uri;
@@ -54,7 +56,7 @@ class Mailhelper {
     protected $attachments;
     protected $email_log_level;
     protected $email_title;
-    protected $objApp;
+    protected $app;
     protected $toolsHelper;
     protected $query;
     public $user_id;
@@ -62,8 +64,8 @@ class Mailhelper {
     public function __construct() {
         $this->db = Factory::getDbo();
         $this->toolsHelper = new ToolsHelper;
-        $this->objApp = Factory::getApplication();
-        $this->user_id = $this->objApp->getSession()->get('user')->id;
+        $this->app = Factory::getApplication();
+        $this->user_id = $this->app->getSession()->get('user')->id;
     }
 
     private function buildEmailHeader($params) {
@@ -72,11 +74,15 @@ class Mailhelper {
          * Uses flexbox for responsive layout that works on all screen sizes
          */
         $logo = '/images/com_ra_mailman/' . $params->get('logo_file');
+        $logo_align = $params->get('logo_align', 'right');
+        $text_align = ($logo_align === 'right') ? 'left' : 'right';
+        $flex_direction = ($logo_align === 'right') ? 'row' : 'row-reverse';
 
 // Set the div for the header as a whole using flexbox for responsive layout
 // In due course, can just user $header = $this->toolsHelper->buildEmailPreamble();
         $header = '<div style="';
         $header .= 'display: flex; ';
+        $header .= 'flex-direction: ' . $flex_direction . '; ';
         $header .= 'justify-content: space-between; ';
         $header .= 'align-items: center; ';
         $header .= 'gap: 20px; ';
@@ -90,7 +96,7 @@ class Mailhelper {
         $header .= '">';
 
 //      Set the div for the header text (left-aligned, flexible width, shrinks on small screens)
-        $header .= '<div style="flex: 1 1 auto; text-align: left; min-width: 0; overflow-wrap: break-word;">';
+        $header .= '<div style="flex: 1 1 auto; text-align: ' . $text_align . '; min-width: 0; overflow-wrap: break-word;">';
         $header .= $params->get('email_header');
         $header .= '</div>';
 
@@ -98,7 +104,7 @@ class Mailhelper {
         if (file_exists(JPATH_ROOT . $logo)) {
             $image_data = file_get_contents(JPATH_ROOT . $logo);
             $encoded = base64_encode($image_data);
-            $header .= '<a href="' . $params->get('website') . '" style="flex-shrink: 0; display: flex; margin-left: auto;">';
+            $header .= '<a href="' . $params->get('website') . '" style="flex-shrink: 0; display: flex;">';
             $header .= '<img src="data:image/jpeg;base64,' . $encoded . '" ';
             $header .= 'style="height: ' . $params->get('height') . 'px; width: ' . $params->get('width') . 'px; display: block; max-width: 100%; height: auto;" ';
             $header .= 'alt="Logo">';
@@ -109,6 +115,28 @@ class Mailhelper {
 
         $header .= '</div>';
         return $header;
+    }
+    public function buildMenu(){
+    // Invoked from com_ra_tools / Admin / dashboard
+        $canDo = ContentHelper::getActions('com_ra_tools');
+         $text = '<h3>Mail Manager</h3>';
+        $text .= '<ul>';
+        $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=mail_lsts" target="_self">Mailing lists</a></li>';
+        $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=mailshots" target="_self">Mailshots</a></li>';
+        if ($canDo->get('core.create')) {
+            $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=subscriptions" target="_self">Subscriptions</a></li>';
+            $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=profiles" target="_self">MailMan Users</a></li>';
+            $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=reports" target="_self">Mailman Reports</a></li>';
+        }
+
+        if ($canDo->get('core.admin')) {
+    //        $versions = $this->toolsHelper->getVersions('com_ra_mailman');
+            $text .= '<li><a href="index.php?option=com_config&view=component&component=com_ra_mailman" target="_self">';
+            $text .= "Configure com_ra_mailman (version " . $versions->component . ")</a></li>" . PHP_EOL;
+    //        $text .= '<li>(DB version is ' . $versions->db_version . ')</li>';
+        }
+        $text .= '</ul>' . PHP_EOL;
+        return $text;
     }
 
     public function buildMessage($mailshot_id) {
@@ -221,7 +249,7 @@ class Mailhelper {
 
         return $mailshot_body;
     }
-
+    
     private function canDo($option = 'core.manage') {
         // 04/11/24 this function probably not used
 // Checks that the current user is authorised for the given option
@@ -410,7 +438,13 @@ class Mailhelper {
     }
 
     public function getDefaultGroup() {
-        $this->app = Factory::getApplication();
+        /*
+            * Returns the default group for the current User, which is used to determine which mailing lists they can see
+            * If the full version is running, this is set to 'N' and all users see all lists
+            * If the sub-set is running, this is set to the home group of the user, which is stored in the profile record
+        */
+
+        $user = $this->app->getSession()->get('user');
         $context = 'com_ra_mailman.default_group.';
 
         $default_group = $this->app->getUserState($context, '');
@@ -421,11 +455,12 @@ class Mailhelper {
                 return 'N';
             } else {
                 // Get home group from profile record
-                $user_id = 1;
-                $sql = 'SELECT group_code FROM #__ra_profiles WHERE id=' . $user_id;
+                $sql = 'SELECT home_group FROM #__ra_profiles WHERE id=' . $user->id;
                 $group = $this->toolsHelper->getValue($sql);
                 if (is_null($group)) {
-                    throw new Exception('Can\'t find User record', 404);
+                   return false;                
+                    Factory::getApplication()->enqueueMessage('Can\'t find User record ' . $sql, 'error');
+ //                   throw new Exception('Can\'t find User record', 404);
                 }
                 $this->app->setUserState($context, $group);
                 return $group;
@@ -503,7 +538,8 @@ class Mailhelper {
             return;
         }
         $sql = "SELECT s.id AS subscription_id, l.id AS list_id, ";
-        $sql .= "u.id as user_id, u.name AS 'User', u.email AS 'email' ";
+//      $sql .= "u.name AS 'User', ";          
+        $sql .= "u.id as user_id, u.email AS 'email' ";
         $sql .= 'FROM #__ra_mail_shots AS m ';
         $sql .= 'INNER JOIN `#__ra_mail_lists` AS l ON l.id = m.mail_list_id ';
         $sql .= 'INNER JOIN #__ra_mail_subscriptions AS s ON s.list_id = l.id ';
@@ -628,7 +664,6 @@ class Mailhelper {
         $query->where('mail_list_id=' . $list_id);
         $query->order('id DESC');
         $query->setLimit('1');
-//        die($query);
         $this->db->setQuery($query);
         $this->db->execute();
         $item = $this->db->loadObject();
@@ -703,6 +738,12 @@ class Mailhelper {
         }
         return '';
     }
+
+    public function loadUsers($code){
+        // Invoked from plg_ra_mailman_userload to find the users to be loaded for the given code
+        $this->messages = [];
+        $this->messages[] = 'No records for ' . $code;
+    } 
 
     public function lookupList($list_id) {
         $sql = 'SELECT name FROM #__ra_mail_lists ';
@@ -827,7 +868,7 @@ class Mailhelper {
 
         $count = 0;
         // Send message to the editor of the message
-        if ($this->sendEmail($user_email, $owner_email, $title, $mailshot_body . '</div></body></html>', $this->attachments)) {
+        if ($this->toolsHelper->sendEmail($user_email, $owner_email, $title, $mailshot_body . '</div></body></html>', $this->attachments)) {
             $this->message .= ' [' . $this->email_title . '] sent to you at ' . $user_email;
             $count++;
         } else {
@@ -837,7 +878,7 @@ class Mailhelper {
 //        die('user email ' . $user_email . '<br>' . $this->message);
 //      If current user not the list owner, send another copy to the owner, reply_to = author
         if ($user_email != $owner_email) {
-            if ($this->sendEmail($owner_email, $user_email, $title, $mailshot_body . '</div></body></html>', $this->attachments)) {
+            if ($this->toolsHelper->sendEmail($owner_email, $user_email, $title, $mailshot_body . '</div></body></html>', $this->attachments)) {
                 $this->message .= ', also sent to the owner at ' . $owner_email;
                 $count++;
             } else {
@@ -850,83 +891,6 @@ class Mailhelper {
         }
 //        die($this->message);
         return true;
-    }
-
-    function sendEmail($to, $reply_to, $subject, $body, $attachments = '') {
-        $this->toolsHelper->sendEmail($to, $reply_to, $subject, $body, $attachments);
-        return;
-        ////////////////////////////////////////////////////////////////////////
-        // Log level -2 is solely to benchmark the overhead of sending via SMTP
-        if ($this->email_log_level < 0) {
-            return true;
-        }
-        if ($to == '') {
-            Factory::getApplication()->enqueueMessage('To address is missing', 'error');
-            return 0;
-        }
-        $objMail = Factory::getMailer();
-        $config = Factory::getConfig();
-        if (is_null($config)) {
-            // being run in batch mode
-            $params = ComponentHelper::getParams('com_ra_mailman');
-            $email_details = $params['email_details'];
-            $sender = explode('.', $email_details);
-//           $sender = array(
-//               'webmaster@bigley.me.uk',
-//               'MailMan'
-//           );
-//           $reply_to = 'webmaster@bigley.me.uk';
-        } else {
-            $sender = array(
-                $config->get('mailfrom'),
-                $config->get('fromname')
-            );
-
-            if ($reply_to == '') {
-                $reply_to = $config->get('mailfrom');
-            }
-        }
-//        var_dump($attachments);
-//        echo '<br>';
-//        die('sending to ' . $to);
-        $objMail->setSender($sender);
-        $objMail->addRecipient($to);
-        $objMail->addReplyTo($reply_to);
-        $objMail->isHtml(true);
-        $objMail->Encoding = 'base64';
-        $objMail->setSubject($subject);
-        $objMail->setBody($body);
-
-        //       echo $body;
-        //       die('MailHelper');
-//      Optional file attachment(s) - should be an array
-        if ($attachments != '') {
-            $objMail->addAttachment($attachments);
-        }
-        // debug code for development - echo writes to a buffer that is not actually displayed
-//        if (1) {
-        if ((substr(JPATH_ROOT, 14, 6) == 'joomla') OR (substr(JPATH_ROOT, 14, 6) == 'MAMP/h')) {  // Development
-            $this->message .= $to . ' ';
-            echo "To: <b>$to</b><br>";
-            echo "Reply_to: <b>$reply_to</b><br>";
-            echo "Subject: <b>$subject</b><br>";
-            echo $body;
-            if ($attachments != '') {
-                echo "<br>";
-                echo "Attachment: <b>$attachments</b><br>";
-            }
-            die('MailHelper');
-            return true;
-        } else {
-            $send = $objMail->Send();
-
-//        if ($send !== true) {
-//            $this->logEmail("ME", 'Error sending email: ' . $to);
-//        } else {
-//            $this->logEmail("MS", $to);
-//        }
-            return $send;
-        }
     }
 
     public function sendEmails($mailshot_id) { // before version 4.5.1, this was function send
@@ -1034,7 +998,7 @@ class Mailhelper {
 
                 $message .= $this->footer . $link . '</div>';
                 $message .= '</body></html>';
-                if (!$this->sendEmail($subscriber->email, $reply_to, $this->email_title, $message, $this->attachments)) {
+                if (!$this->toolsHelper->sendEmail($subscriber->email, $reply_to, $this->email_title, $message, $this->attachments)) {
                     $error_count++;
                 }
 
@@ -1177,7 +1141,7 @@ class Mailhelper {
         echo 'emails ' . $row->email . '&' . $owner->email . '<br>';
 //        return $this->sendEmail('webmaster@bigley.me.uk', $item->reply_to, $title, $body, '');
         $this->message = 'An email has been sent to User ' . $row->preferred_name;
-        return $this->sendEmail($row->email, $owner->email, $title, $body, '');
+        return $this->toolsHelper->sendEmail($row->email, $owner->email, $title, $body, '');
     }
 
     private function storeMessage($mailshot_id, $mailshot_body) {

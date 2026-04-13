@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.5.7
+ * @version    4.6.5
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -16,6 +16,9 @@
  * 03/04/25 CB correct check on mailshots not yet sent
  * 20/10/25 CB sendButton
  * 04/02/26 CB fix Un-subscribe bug
+ * 16/03/26 CB if not full_version, check user is logged in
+ * 17/03/26 CB remove diagnostic display
+ * 08/04/26 CB sendButton
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\View\Mail_lsts;
@@ -43,6 +46,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
     protected $mailshot_send_message;
     protected $pagination;
     protected $state;
+    protected $mailHelper;
     protected $params;
     protected $toolsHelper;
     protected $menu_id;
@@ -60,12 +64,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         if ($emails_outstanding > 0) {
             return '';
         }
-        $objMailHelper = new Mailhelper;
-        if ($objMailHelper->isAuthor($list_id)) {
-            if (JDEBUG) {
-                echo 'Author  ' . $list_id;
-                //               print_r($last_mailshot);
-            }
+        if ($this->mailHelper->isAuthor($list_id)) {
             if ((is_null($last_mailshot->date_sent))
                     AND (!is_null($last_mailshot->processing_started))) {
                 //               $this->app->enqueueMessage('Last sent ' . $last_mailshot->date_sent . ', started ' . $last_mailshot->processing_started, 'warning');
@@ -137,10 +136,16 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
      * @throws Exception
      */
     public function display($tpl = null) {
+        // See if we are running the full version
+        $this->mailHelper = new Mailhelper;
+        $group = $this->mailHelper->getDefaultGroup();
+
         $this->app = Factory::getApplication();
         $this->user = $this->getCurrentUser();
-        if (is_null($this->user)) {
-            echo 'user is NULL<br>';
+//         Factory::getApplication()->enqueueMessage('User id: ' . $this->user->id, 'info');
+        if (($this->user->id == 0) AND ($group !== 'N')){
+             Factory::getApplication()->enqueueMessage('You cannot view lists unless you are logged in', 'warning');
+            return;
         }
         $this->menu_id = $this->app->input->getInt('Itemid', '0');
         $this->toolsHelper = new ToolsHelper;
@@ -234,9 +239,12 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         $target_send = 'index.php?option=com_ra_mailman&task=mailshot.send&menu_id=' . $this->menu_id . '&mailshot_id=';
         if (($last_mailshot->id > 0) AND is_null($last_mailshot->date_sent)) {
             if ($last_mailshot->attachment != '') {
-                $target = 'images/com_ra_mailman/' . $last_mailshot->attachment;
-                $label = '<span class="icon-paperclip"></span>';
-                echo $this->toolsHelper->buildLink($target, $label, True);
+                $attachments = array_values(array_filter(array_map('trim', explode(',', $last_mailshot->attachment))));
+                foreach ($attachments as $file) {
+                    $target = 'images/com_ra_mailman/' . $file;
+                    $label = '<span class="icon-paperclip" title="' . htmlspecialchars($file, ENT_QUOTES, 'UTF-8') . '"></span>';
+                    echo $this->toolsHelper->buildLink($target, $label, True);
+                }
             }
             $target = $target_send . $last_mailshot->id . '&total=' . $count_subscribers;
 //                                           $target = 'administrator/index.php?option=com_ra_mailman&task=mailshot.send&mailshot_id='  . '&menu_id=' . $this->menu_id;

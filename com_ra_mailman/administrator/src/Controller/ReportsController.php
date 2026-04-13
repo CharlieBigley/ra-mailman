@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.5.8
+ * @version    4.6.6
  * @package    com_ra_mailman
  * @copyright   Copyright (C) 2005 - 2019 Open Source Matters, Inc. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
@@ -15,6 +15,8 @@
  * 06/10/25 CB colour for event link
  * 11/10/25 CB display colour for event link, subscriptionsReport
  * 03/11/25 CB show count of blocked users
+ * 28/03/26 CB Analysis of members by group
+ * 13/04/26 CB Users with a Profile
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Controller;
@@ -54,6 +56,40 @@ class ReportsController extends FormController {
         $this->breadcrumbs = $this->toolsHelper->buildLink('administrator/index.php', 'Dashboard');
         $this->breadcrumbs .= '>' . $this->toolsHelper->buildLink('administrator/index.php?option=com_ra_tools&view=dashboard', 'RA Dashboard');
         $this->breadcrumbs .= '>' . $this->toolsHelper->buildLink($this->back, 'MailMan Reports');
+    }
+
+    public function analyseListMembership(){
+        ToolBarHelper::title($this->prefix . 'Analysis of members by group');
+        echo $this->breadcrumbs;
+        $header = 'Status,Group,Count';
+
+        
+        $sql = 'SELECT l.`group_code`, l.`name`';
+        $sql .= 'FROM `j5_ra_mail_lists` AS l'; 
+        $sql .= 'WHERE l.`group_code` = l.`group_primary`';
+        
+        $lists = $this->toolsHelper->getRows($sql);
+        foreach($lists as $list){
+            echo '<h4>' . $list->group->code . ': ' . $list->name . '</h4>';
+            $objTable = new ToolsTable();
+            $objTable->add_header($header);    
+                        
+            $sql = 'SELECT l.state, p.home_group, COUNT(l.id) As `Cnt`'; 
+            $sql .= 'FROM `j5_ra_mail_lists` AS l ';
+            $sql .= 'INNER JOIN `j5_ra_mail_subscriptions` AS s ON s.list_id = l.id ';
+            $sql .= 'INNER JOIN `j5_ra_profiles` AS p ON p.id = s.user_id ';
+            $sql .= 'WHERE  l.`id`=' . $list->id;
+            $sql .= ' GROUP BY l.state, l.`group_code`,p.home_group'; 
+            $rows = $this->toolsHelper->getRows($sql);  
+            foreach ($rows as $row){
+                $objTable->add_item($row->state);
+                $objTable->add_item($row->home_group);
+                $objTable->add_item($row->Cnt);   
+                $objTable->generate_line();  
+            }
+            $objTable->generate_table();
+        }
+        echo $this->toolsHelper->backButton($this->back);
     }
 
     public function blockedUsers() {
@@ -165,6 +201,7 @@ class ReportsController extends FormController {
         $sql = "SELECT count(*) FROM #__ra_profiles AS p ";
         $sql .= "LEFT JOIN `#__users` as u on u.id = p.id ";
         $sql .= "WHERE u.id IS NULL ";
+        echo $sql . '<br>';
         $count = $this->toolsHelper->getValue($sql);
         if ($count == 0) {
             echo 'All profiles have a matching User<br>';
@@ -192,6 +229,38 @@ class ReportsController extends FormController {
                 echo $this->toolsHelper->buildButton($target, 'Purge All', false, 'red');
             }
         }
+//  See if any Users without a Profile  
+        $sql = "SELECT count(*) FROM #__users AS u ";
+        $sql .= "LEFT JOIN `#__ra_profiles` as p on p.id = u.id ";
+        $sql .= "WHERE p.id IS NULL ";
+        echo $sql . '<br>';
+        $count = $this->toolsHelper->getValue($sql);
+        if ($count == 0) {
+            echo 'All users have a matching Profile<br>';
+        } else {
+            echo '<h4>Users without a Profile record</h4>';
+            $sql = "SELECT u.id, u.name, u.email, u.registerDate, u.lastvisitDate ";
+            $sql .= "FROM #__users AS u ";
+            $sql .= "LEFT JOIN `#__ra_profiles` as p on p.id = u.id ";
+            $sql .= "WHERE p.id IS NULL ";
+            $sql .= "order by u.id";
+            $rows = $this->toolsHelper->getRows($sql);
+            $objTable = new ToolsTable();
+            $objTable->add_header("ID,Name,Email,Registered,Last Visit");
+
+            foreach ($rows as $row) {
+                $objTable->add_item($row->id);
+                $objTable->add_item($row->name);
+                $objTable->add_item($row->email);
+                $objTable->add_item($row->created);
+                $objTable->generate_line();
+            }
+            $objTable->generate_table();
+            if ($this->toolsHelper->isSuperuser()) {
+                $target = 'administrator/index.php?option=com_ra_mailman&task=reports.duffProfiles&mode=P';
+                echo $this->toolsHelper->buildButton($target, 'Purge All', false, 'red') . '<br>';
+            }
+        }        
 //  See if any Profiles with user_id =0
         $sql = 'SELECT count(*) FROM #__ra_profiles ';
         $sql .= 'WHERE id =0 ';
@@ -431,9 +500,14 @@ class ReportsController extends FormController {
         //       $date = HTMLHelper::_('date', Factory::getDate('now'), 'd M y')
         $params = ComponentHelper::getParams('com_ra_mailman');
         $logo = '/images/com_ra_mailman/' . $params->get('logo_file');
+        $logo_align = $params->get('logo_align', 'right');
+        $text_align = ($logo_align === 'right') ? 'left' : 'right';
+        $flex_direction = ($logo_align === 'right') ? 'row' : 'row-reverse';
+
 //      Set the div for the header as a whole using flexbox for responsive layout
         $header = '<div style="';
         $header .= 'display: flex; ';
+        $header .= 'flex-direction: ' . $flex_direction . '; ';
         $header .= 'justify-content: space-between; ';
         $header .= 'align-items: center; ';
         $header .= 'gap: 20px; ';
@@ -446,16 +520,16 @@ class ReportsController extends FormController {
         $header .= 'overflow: hidden; ';
         $header .= '">';
 
-//      Set the div for the header text (left-aligned, flexible width, shrinks on small screens)
-        $header .= '<div style="flex: 1 1 auto; text-align: left; min-width: 0; overflow-wrap: break-word;">';
+//      Set the div for the header text
+        $header .= '<div style="flex: 1 1 auto; text-align: ' . $text_align . '; min-width: 0; overflow-wrap: break-word;">';
         $header .= $params->get('email_header');
         $header .= '</div>';
 
-//      Logo (right-aligned, non-shrinking)
+//      Logo
         if (file_exists(JPATH_ROOT . $logo)) {
             $image_data = file_get_contents(JPATH_ROOT . $logo);
             $encoded = base64_encode($image_data);
-            $header .= '<a href="' . $params->get('website') . '" style="flex-shrink: 0; display: flex; margin-left: auto;">';
+            $header .= '<a href="' . $params->get('website') . '" style="flex-shrink: 0; display: flex;">';
             $header .= '<img src="data:image/jpeg;base64,' . $encoded . '" ';
             $header .= 'style="height: ' . $params->get('height') . 'px; width: ' . $params->get('width') . 'px; display: block; max-width: 100%; height: auto;" ';
             $header .= 'alt="Logo">';
@@ -503,8 +577,8 @@ class ReportsController extends FormController {
         echo '<b>footer:</b> ' . $params->get('colour_footer') . '<br>';
 
         echo '<b>logo:</b> ' . $logo . ', height=' . $params->get('height');
-        echo ', width=' . $params->get('width');
-        echo ', logo align=' . $logo_align . '<br>';
+        echo ', width=' . $params->get('width') . '<br>';
+        echo '<b>logo align:</b> ' . $logo_align . '<br>';
         echo '<br>';
         $saturation = [];
         $saturation[] = '0.2';

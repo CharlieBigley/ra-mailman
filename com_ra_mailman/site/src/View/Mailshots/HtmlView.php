@@ -1,12 +1,13 @@
 <?php
 
 /**
- * @version    4.0.7
+ * @version    4.6.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
  * @license    GNU General Public License version 2 or later; see LICENSE.txt
- * 14/11/23 CB store menu_id, define max_chars
+ * 14/11/23 CB store menu_id, define max_chars  
+ * 16/03/26 CB show list name if required
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\View\Mailshots;
@@ -17,6 +18,7 @@ defined('_JEXEC') or die;
 use \Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use \Joomla\CMS\Factory;
 use \Joomla\CMS\Language\Text;
+use \Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
@@ -29,12 +31,13 @@ class HtmlView extends BaseHtmlView {
     protected $items;
     protected $pagination;
     protected $state;
-    public $list_id;
-    public $list_name;
+    protected $list_id;
+    protected $list_name;
     protected $max_chars;
     protected $menu_id;
-    public $group_code;
-    public $objHelper;
+    protected $group;
+    protected $mailHelper;
+    protected $toolsHelper;
 
     /**
      * Display the view
@@ -46,21 +49,17 @@ class HtmlView extends BaseHtmlView {
      * @throws Exception
      */
     public function display($tpl = null) {
-//      Only mailshot for given list are required
-//
 //      get the input parameters
         $app = Factory::getApplication();
         $this->list_id = $app->input->getInt('list_id', '0');
         $this->menu_id = $app->input->getInt('Itemid', '0');
         // Lookup names for List and Group
-        $this->objHelper = new ToolsHelper;
+        $this->toolsHelper = new ToolsHelper;
         if ($this->list_id > 0) {
             $sql = 'SELECT group_code, name FROM `#__ra_mail_lists` WHERE id=' . $this->list_id;
-            $list = $this->objHelper->getItem($sql);
-            $this->group_code = $list->group_code;
-            $this->list_name = $list->name;
+            $list = $this->toolsHelper->getItem($sql);
+            $this->list_name = $list->group_code . ': ' . $list->name;
         }
-
         $this->state = $this->get('State');
         $this->items = $this->get('Items');
         $this->pagination = $this->get('Pagination');
@@ -72,6 +71,9 @@ class HtmlView extends BaseHtmlView {
         if (count($errors = $this->get('Errors'))) {
             throw new \Exception(implode("\n", $errors));
         }
+        // See if we are running the full version
+        $this->mailHelper = new MailHelper;
+        $this->group = $this->mailHelper->getDefaultGroup();
 // This value should come from component config
 // define the max number of characters to show from the mailshot
         $this->max_chars = 516;

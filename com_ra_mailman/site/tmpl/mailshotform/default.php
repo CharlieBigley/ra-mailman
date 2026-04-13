@@ -77,11 +77,10 @@ $toolsHelper = new ToolsHelper;
                 echo $this->form->renderField('attachment');
                 ?>
                 <?php if (!empty($this->item->attachment)) : ?>
-                    <?php $attachmentFiles = array(); ?>
-                    <?php foreach ((array) $this->item->attachment as $fileSingle) : ?>
+                    <?php $attachmentFiles = array_values(array_filter((array) $this->item->attachment)); ?>
+                    <?php foreach ($attachmentFiles as $fileSingle) : ?>
                         <?php if (!is_array($fileSingle)) : ?>
                             <a href="<?php echo Route::_(Uri::root() . 'images/com_ra_mailman' . DIRECTORY_SEPARATOR . $fileSingle, false); ?>"><?php echo $fileSingle; ?></a> |
-                            <?php $attachmentFiles[] = $fileSingle; ?>
                         <?php endif; ?>
                     <?php endforeach; ?>
                     <input type="hidden" name="jform[attachment_hidden]" id="jform_attachment_hidden" value="<?php echo implode(',', $attachmentFiles); ?>" />
@@ -91,9 +90,13 @@ $toolsHelper = new ToolsHelper;
                     <div class="controls">
 
                         <?php if ($this->canSave): ?>
-                            <button type="submit" class="validate btn btn-primary">
+                            <button type="submit" class="validate btn btn-primary" name="save_quit">
                                 <span class="fas fa-check" aria-hidden="true"></span>
-                                <?php echo Text::_('Save'); ?>
+                                <?php echo Text::_('Save & Close'); ?>
+                            </button>
+                            <button type="submit" class="validate btn btn-success" name="save_continue" onclick="this.form.task.value='mailshotform.savecontinue';">
+                                <span class="fas fa-save" aria-hidden="true"></span>
+                                <?php echo Text::_('Save & Continue'); ?>
                             </button>
                         <?php endif; ?>
                         <a class="btn btn-danger"
@@ -105,10 +108,9 @@ $toolsHelper = new ToolsHelper;
                     </div>
                 </div>
 
-                <input type="hidden" name="option" value="com_ra_mailman"/>
-                <input type="hidden" name="task"
-                       value="mailshotform.save"/>
-                       <?php echo HTMLHelper::_('form.token'); ?>
+                  <input type="hidden" name="option" value="com_ra_mailman"/>
+                  <input type="hidden" name="task" value="mailshotform.save"/>
+                  <?php echo HTMLHelper::_('form.token'); ?>
             </form>
         <?php endif; ?>
 </div>

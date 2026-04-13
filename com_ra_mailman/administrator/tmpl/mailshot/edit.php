@@ -56,13 +56,14 @@ $self .= '&id=' . (int) $this->item->id . '&list_id=' . (int) $this->list_id;
 
                 echo $this->form->renderField('attachment');
                 if (!empty($this->item->attachment)) {
-                    $attachmentFiles = array();
-                    foreach ((array) $this->item->attachment as $fileSingle) {
+                    $attachmentFiles = array_values(array_filter((array) $this->item->attachment));
+                    foreach ($attachmentFiles as $fileSingle) {
                         if (!is_array($fileSingle)) {
                             $target = Route::_(Uri::root() . 'images/com_ra_mailman' . DIRECTORY_SEPARATOR . $fileSingle);
                             echo $toolsHelper->buildLink($target, $fileSingle, true);
                         }
                     }
+                    echo '<input type="hidden" name="jform[attachment_hidden]" id="jform_attachment_hidden" value="' . implode(',', $attachmentFiles) . '" />';
                 }
                 if (!$this->date_sent == '0000-00-00') {
                     echo $this->form->renderField('date_sent');

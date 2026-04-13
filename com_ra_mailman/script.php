@@ -2,24 +2,11 @@
 
 /*
  * Installation script
- * 24/08/23 CB code for copying cli file
- * 19/08/23 CB correct copying of ra_renewals
- * 14/11/23 CB delete ra_mailshots / author_id
- * 20/11/23 CB mail_lists / group_primary
- * 21/11/23 CB mail_lists / chat_list
- * 02/01/24 CB subscription/expiry date
- * 05/01/24 CB comment out ra_renewals (use online system function)
- * 09/09/24 CB compare version of com_ra_tools
- * 10/09/24 CB new getVersions, new deleteFiles (from version 4.1.8)
- * 11/09/24 CB delete mailshot/ordering
- * 04/10/24 CB ensure ToolsCheck returns true
- * 08/10/24 CB replace JPATH_SITE with JPATH_ROOT, delete files for mailshot view
- * 19/10/24 CB abort installation if com_ra_tools not present
  * 29/04/25 CB getDbVersion and getVersion
  * 14/06/25 CB add link to dashboard
  * 31/07/25 CB this->version_required
  * 09/08/25 CB ra_mail_lists / emails_outstanding
- * 29/09/25 CB add event_id to
+ * 06/04/26 CB add mail_list/description
  */
 
 \defined('_JEXEC') or die;
@@ -325,36 +312,30 @@ class Com_Ra_mailmanInstallerScript {
 
     public function install($parent): bool {
         echo '<p>Installing RA MailMan (com_ra_mailman) ' . '</p>';
-        /*
-          if (ComponentHelper::isEnabled('com_ra_mailman', true)) {
+ 
+        if (ComponentHelper::isEnabled('com_ra_mailman', true)) {
           $this->original_version = $this->getVersion();
-          echo '<p>com_ra_events found, version ' . $this->original_version;
+          echo '<p>com_ra_mailman found, version ' . $this->original_version;
           echo ', database version ' . $this->getDbVersion() . '</p>';
-          }
-          if (ComponentHelper::isEnabled('com_ra_tools', true)) {
+        }
+        if (ComponentHelper::isEnabled('com_ra_tools', true)) {
           $tools_versions = $this->getVersions('com_ra_tools');
 
-          $tools_required = '3.0.4';
+          $tools_required = '3.5.5';
           echo '<p>Version ' . $tools_required . ' of com_ra_tools required<br>';
           if (version_compare($tools_version, $tools_required, 'ge')) {
-          echo '<p>Version ' . $tools_versions . ' of com_ra_tools found</p>';
+            echo '<p>Version ' . $tools_versions . ' of com_ra_tools found</p>';
           } else {
-          echo 'Version ' . $tools_version . ' of com_ra_tools found</p>';
-          echo '<p>ERROR: Please install version of com_ra_tools >=' . $tools_required . '</p>';
-          return false;
+            echo 'Version ' . $tools_version . ' of com_ra_tools found</p>';
+            echo '<p>ERROR: Please install version of com_ra_tools >=' . $tools_required . '</p>';
+            return false;
           }
-          } else {
+        } else {
           echo 'This component cannot be installed unless component RA Tools (com_ra_tools) is installed first';
           return false;
-          }
-         */
-//        if (ComponentHelper::isEnabled('com_ra_mailman', true)) {
-//            $versions = $this->getVersions();
-//            if ($versions) {
-//            echo '<p>com_ra_mailman found, version ' . $versions->component;
-//            echo ', database version ' . $versions->db_version . '</p>';
-//            //           }
-//        }
+        }
+       
+
 //        $v_403 = '4.0.3';
 //        if (version_compare($versions->component, $v_403, '>')) {
 //            echo 'New version is greater than ' . $v_403 . '<br>';
@@ -437,7 +418,7 @@ class Com_Ra_mailmanInstallerScript {
             return false;
         }
 
-        $tools_required = '3.4.2';
+        $tools_required = '3.5.5';
         $tools_version = $this->getVersion('com_ra_tools');
         echo '<p>Version ' . $tools_required . ' of com_ra_tools required<br>';
         if (version_compare($tools_version, $tools_required, 'ge')) {
@@ -449,7 +430,7 @@ class Com_Ra_mailmanInstallerScript {
 //           return false;
         }
 
-        $this->version_required = '4.6.0';
+        $this->version_required = '4.7.0';
 
         if (version_compare($this->current_version, $this->version_required, 'ge')) {
             echo 'Current version is ' . $this->current_version . ', no additional processing required</p>';
@@ -457,16 +438,20 @@ class Com_Ra_mailmanInstallerScript {
         } else {
             echo '<p>Version is currently ' . $this->current_version . ', ';
             echo 'Requires version >= ' . $this->version_required . '</p>';
+        }      
+        if (version_compare($this->current_version, '4.7.0', 'le')) {
+            $this->checkColumn('ra_mail_lists', 'description', 'A', 'VARCHAR(512) DEFAULT "" AFTER name; ');
+            $sql = 'UPDATE `#__ra_mail_lists` SET record_type=\'\' ';
+            $count = $this->executeCommand($sql);
+            $this->checkColumn('ra_mail_shots', 'record_type', 'A', 'VARCHAR(1) DEFAULT "M" AFTER id; ');
+            $this->checkColumn('ra_mail_shots', 'mail_list_id', 'U', 'INT NULL; ');
+            $this->checkColumn('ra_mail_shots', 'event_id', 'A', 'INT NULL AFTER mail_list_id; ');           
+            $sql = 'UPDATE `#__ra_mail_shots` SET record_type=\'M\' ';
+            $count = $this->executeCommand($sql);
         }
         if (version_compare($this->current_version, '4.6.0', 'le')) {
             echo 'Deleting redundant view profile<br>';
             $this->deleteView('Profile');
-        }
-        if (version_compare($this->current_version, '4.5.7', 'le')) {
-            $this->checkColumn('ra_mail_shots', 'event_id', 'A', 'INT DEFAULT "0" AFTER final_message; ');
-            $sql = 'UPDATE `#__ra_mail_shots` ';
-            $sql .= 'SET event_id=0 ';
-            $count = $this->executeCommand($sql);
         }
         if (version_compare($this->current_version, '4.5.0', 'le')) {
             $this->checkColumn('ra_mail_lists', 'emails_outstanding', 'A', 'INT DEFAULT "0" AFTER footer; ');
