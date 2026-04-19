@@ -137,6 +137,9 @@ class OrganisationModel extends AdminModel {
             }
 
             // Do any procesing on fields here if needed
+            if (!empty($item->logo) && strpos($item->logo, '/') === false) {
+                $item->logo = 'images/com_ra_mailman/' . $item->logo;
+            }
         }
 
         return $item;

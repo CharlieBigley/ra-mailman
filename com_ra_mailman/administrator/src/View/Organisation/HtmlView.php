@@ -20,6 +20,7 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use \Joomla\CMS\Toolbar\ToolbarHelper;
 use \Joomla\CMS\Factory;
 use \Joomla\CMS\Language\Text;
+use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
  * View class for a single Organisation.
@@ -28,10 +29,12 @@ use \Joomla\CMS\Language\Text;
  */
 class HtmlView extends BaseHtmlView {
 
+    protected $app;
     protected $canDo;
     protected $state;
     protected $item;
     protected $form;
+    protected $toolsHelper;
 
     /**
      * Display the view
@@ -43,6 +46,7 @@ class HtmlView extends BaseHtmlView {
      * @throws Exception
      */
     public function display($tpl = null) {
+        $this->app = Factory::getApplication();
         $this->state = $this->get('State');
         $this->item = $this->get('Item');
         $this->form = $this->get('Form');
@@ -51,8 +55,8 @@ class HtmlView extends BaseHtmlView {
         if (count($errors = $this->get('Errors'))) {
             throw new \Exception(implode("\n", $errors));
         }
+        $this->toolsHelper =  new ToolsHelper();
         $this->addToolbar();
-
         parent::display($tpl);
     }
 
@@ -74,8 +78,13 @@ class HtmlView extends BaseHtmlView {
         } else {
             $checkedOut = false;
         }
-
-        ToolbarHelper::title(Text::_('Ramblers Area'), "generic");
+        if (strlen($this->item->code) == 2) {
+            $header = 'Area' . ' ' . $this->toolsHelper->lookupArea($this->item->code); 
+        } else {
+            $header = 'Group'  . ' ' . $this->toolsHelper->lookupGroup($this->item->code); 
+        }   
+        $header .=  ' (' . $this->item->code . ')';
+         ToolbarHelper::title(Text::_( $header ), "generic");    
 
         // If not checked out, can save the item.
         if (!$checkedOut && ($this->canDo->get('core.edit') || ($$this->anDo->get('core.create')))) {

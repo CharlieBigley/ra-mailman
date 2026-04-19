@@ -53,14 +53,16 @@ class OrganisationsController extends AdminController
     ) {
         parent::__construct($config, $factory, $app, $input);
 
-        $this->toolsHelper = new ToolsHelper;
         $this->app = Factory::getApplication();
+        $this->dbPrefix = Factory::getDbo()->getPrefix();
+        $this->toolsHelper = new ToolsHelper; 
         $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
         $wa->registerAndUseStyle('ramblers', 'com_ra_mailman/ramblers.css');
+       
     }
 
     public function cancel($key = null, $urlVar = null) {
-        $this->setRedirect('index.php?option=com_ra_mailman&view=dashboard');
+        $this->setRedirect('index.php?option=com_ra_tools&view=dashboard');
     }
 
     /**

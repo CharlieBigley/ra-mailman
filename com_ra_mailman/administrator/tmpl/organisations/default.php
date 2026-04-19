@@ -127,7 +127,8 @@ if (empty($this->items)) {
 
         echo '<td class="d-none d-md-table-cell">' . PHP_EOL;
         if ($item->logo != "") {
-            echo $objHelper->buildLink($item->logo, $item->logo, True, "");
+            $logo = (strpos($item->logo, '/') === false) ? 'images/com_ra_mailman/' . $item->logo : $item->logo;
+            echo $objHelper->buildLink($logo, $item->logo, True, "");
         }
         echo '</td>' . PHP_EOL;
 

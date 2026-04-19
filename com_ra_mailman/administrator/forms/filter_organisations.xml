@@ -8,6 +8,27 @@
             description="Search term"
             hint="JSEARCH_FILTER"
         />
+        <field
+            name="record_type"
+            type="list"
+            label="Type"
+            default=""
+            onchange="this.form.submit();"
+        >
+            <option value="">- All types -</option>
+            <option value="A">Areas</option>
+            <option value="G">Groups</option>
+        </field>
+        <field
+            name="cluster"
+            type="sql"
+            label="Cluster"
+            query="SELECT code AS value, name AS text FROM #__ra_clusters ORDER BY name"
+            key_field="value"
+            value_field="text"
+            header="- All clusters -"
+            onchange="this.form.submit();"
+        />
     </fields>
 
     <fields name="list">

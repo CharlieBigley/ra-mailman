@@ -68,13 +68,18 @@ class Mailhelper {
         $this->user_id = $this->app->getSession()->get('user')->id;
     }
 
-    private function buildEmailHeader($params) {
+    public function buildEmailHeader($setup = null) {
         /*
          * Generates the responsive email header with text left-aligned and logo right-aligned
          * Uses flexbox for responsive layout that works on all screen sizes
          */
-        $logo = '/images/com_ra_mailman/' . $params->get('logo_file');
-        $logo_align = $params->get('logo_align', 'right');
+
+        if (is_null($setup)) {
+            $setup = $this->getEmailSetup();
+        }
+
+        $logo = $this->getLogoPath($setup->logo_file);
+        $logo_align = $setup->logo_align;
         $text_align = ($logo_align === 'right') ? 'left' : 'right';
         $flex_direction = ($logo_align === 'right') ? 'row' : 'row-reverse';
 
@@ -86,7 +91,7 @@ class Mailhelper {
         $header .= 'justify-content: space-between; ';
         $header .= 'align-items: center; ';
         $header .= 'gap: 20px; ';
-        $header .= 'background: ' . $params->get('colour_header', 'rgba(20, 141, 168, 0.5)') . '; ';
+        $header .= 'background: ' . $setup->colour_header . '; ';
         $header .= 'border-radius: 5%; ';
         $header .= 'padding: 20px; ';
         $header .= 'box-sizing: border-box; ';
@@ -97,19 +102,19 @@ class Mailhelper {
 
 //      Set the div for the header text (left-aligned, flexible width, shrinks on small screens)
         $header .= '<div style="flex: 1 1 auto; text-align: ' . $text_align . '; min-width: 0; overflow-wrap: break-word;">';
-        $header .= $params->get('email_header');
+        $header .= $setup->email_header;
         $header .= '</div>';
 
 //      Logo (right-aligned, non-shrinking)
-        if (file_exists(JPATH_ROOT . $logo)) {
+        if (($logo != '') && file_exists(JPATH_ROOT . $logo)) {
             $image_data = file_get_contents(JPATH_ROOT . $logo);
             $encoded = base64_encode($image_data);
-            $header .= '<a href="' . $params->get('website') . '" style="flex-shrink: 0; display: flex;">';
+            $header .= '<a href="' . $setup->website . '" style="flex-shrink: 0; display: flex;">';
             $header .= '<img src="data:image/jpeg;base64,' . $encoded . '" ';
-            $header .= 'style="height: ' . $params->get('height') . 'px; width: ' . $params->get('width') . 'px; display: block; max-width: 100%; height: auto;" ';
+            $header .= 'style="height: ' . $setup->height . 'px; width: ' . $setup->width . 'px; display: block; max-width: 100%; height: auto;" ';
             $header .= 'alt="Logo">';
             $header .= '</a>';
-        } else {
+        } elseif ($logo != '') {
             Factory::getApplication()->enqueueMessage('Logo file "' . $logo . '" not found', 'warning');
         }
 
@@ -117,23 +122,52 @@ class Mailhelper {
         return $header;
     }
     public function buildMenu(){
-    // Invoked from com_ra_tools / Admin / dashboard
+//      Invoked from com_ra_tools / Admin / dashboard
+//      set callback in globals so organisation can return as appropriate after configuration
+        $app = Factory::getApplication();
+        $app->setUserState('com_ra_mailman.reports.callback', 'dashboard');
         $canDo = ContentHelper::getActions('com_ra_tools');
-         $text = '<h3>Mail Manager</h3>';
+        // find current scope
+        $code = $this->getDefaultGroup();
+
+        if (!empty($code) && $code !== 'N') {
+            $sql = 'SELECT id, name ';
+            $sql .= 'FROM #__ra_organisations ';
+            $sql .= 'WHERE code=' . $this->db->quote($code);
+            $item = $this->toolsHelper->getItem($sql);  
+            $subheading =  $code . ' ' . (!empty($item->name) ? htmlspecialchars($item->name) : 'N/A');
+        } else {
+            $subheading = 'All records';
+        }   
+        $text = '<h3>Mail Manager</h3>';
+        $text .= '<h4>Scope '  . $subheading . '</h4>';
         $text .= '<ul>';
-        $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=mail_lsts" target="_self">Mailing lists</a></li>';
+        $super = $this->toolsHelper->isSuperUser();
+        if ($super) {
+            $text .= '<li><a href="index.php?option=com_ra_mailman&view=organisations" target="_self">Organisations</a></li>';
+        }   
+        $text .= '<li><a href="index.php?option=com_ra_mailman&view=mail_lsts" target="_self">Mailing lists</a></li>';
         $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=mailshots" target="_self">Mailshots</a></li>';
+         $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=reports" target="_self">Mailman Reports</a></li>';
+        
+        $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=subscriptions" target="_self">Subscriptions</a></li>';
+        
         if ($canDo->get('core.create')) {
             $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=subscriptions" target="_self">Subscriptions</a></li>';
             $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=profiles" target="_self">MailMan Users</a></li>';
-            $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=reports" target="_self">Mailman Reports</a></li>';
-        }
-
-        if ($canDo->get('core.admin')) {
-    //        $versions = $this->toolsHelper->getVersions('com_ra_mailman');
+        } 
+        $area_code = substr($code, 0, 2);
+        $area_id = $this->toolsHelper->getValue('SELECT id FROM #__ra_organisations WHERE code="' . $area_code . '"');
+        if (!empty($area_id)) {
+            $text .= '<li><a href="index.php?option=com_ra_mailman&view=reports&area=' . $area_code . '" target="_self">Area reports</a></li>';
+            $text .= '<li><a href="index.php?option=com_ra_mailman&view=organisation&layout=edit&callback=dashboard&id=' .  $area_id  . ' " target="_self">Configure ' . $area_code  . '</a></li>'; 
+        }   
+        $text .= '<li><a href="index.php?option=com_ra_mailman&view=organisation&layout=edit&callback=dashboard&id=' . (!empty($item->id) ? $item->id : '') . ' " target="_self">Configure ' . $code  . '</a></li>'; 
+         if ($this->toolsHelper->isSuperuser()){
+            $versions = $this->toolsHelper->getVersions('com_ra_mailman');
             $text .= '<li><a href="index.php?option=com_config&view=component&component=com_ra_mailman" target="_self">';
             $text .= "Configure com_ra_mailman (version " . $versions->component . ")</a></li>" . PHP_EOL;
-    //        $text .= '<li>(DB version is ' . $versions->db_version . ')</li>';
+//            $text .= '<li>(DB version is ' . $versions->db_version . ')</li>';
         }
         $text .= '</ul>' . PHP_EOL;
         return $text;
@@ -185,7 +219,7 @@ class Mailhelper {
 // Save the title for the email (used in $this->send)
         $this->email_title = $item->title;
 
-        $params = ComponentHelper::getParams('com_ra_mailman');
+        $setup = $this->getEmailSetup();
 
 // Start building the complete email HTML structure
         $mailshot_body = '<!DOCTYPE html>';
@@ -201,10 +235,10 @@ class Mailhelper {
         $mailshot_body .= '<body>';
 
         // Build and insert the email header
-        $mailshot_body .= $this->buildEmailHeader($params);
+        $mailshot_body .= $this->buildEmailHeader($setup);
 
         // Add the email body
-        $mailshot_body .= '<div style="background: ' . $params->get('colour_body', 'rgba(20, 141, 168, 0.5)');
+        $mailshot_body .= '<div style="background: ' . $setup->colour_body;
         $mailshot_body .= '; padding-top: 10px; padding-bottom: 10px; ">';
 
         $mailshot_body .= $item->body;
@@ -239,10 +273,10 @@ class Mailhelper {
         // N.B. final </div> not included in case an event invitation is required
 // Footer comprises the footer from the list, plus the owners email address, plus the component footer
 // Created without closing tag so the unsubscribe link can be added
-        $this->footer = '<div style="background: ' . $params->get('colour_footer', 'rgba(20, 141, 168, 0.8)');
+        $this->footer = '<div style="background: ' . $setup->colour_footer;
         $this->footer .= '; padding: 10px;  border-radius: 5%; ">';
         $this->footer .= $item->footer . '<br>';
-        $this->footer .= $params->get('email_footer');
+        $this->footer .= $setup->email_footer;
         $this->footer .= '<br>';
         $this->footer .= 'To unsubscribe from future emails, click ';
         // N.B. final </div> not included
@@ -436,7 +470,6 @@ class Mailhelper {
 
         return strrev($token) . "M";
     }
-
     public function getDefaultGroup() {
         /*
             * Returns the default group for the current User, which is used to determine which mailing lists they can see
@@ -490,6 +523,61 @@ class Mailhelper {
             return $description;
         }
     }
+    public function getEmailSetup() {
+        $params = ComponentHelper::getParams('com_ra_mailman');
+
+        $setup = (object) [
+            'website' => $params->get('website', ''),
+            'email_header' => $params->get('email_header', ''),
+            'email_footer' => $params->get('email_footer', ''),
+            'logo_file' => $params->get('logo_file', ''),
+            'logo_align' => $params->get('logo_align', 'right'),
+            'colour_header' => $params->get('colour_header', 'rgba(20, 141, 168, 0.5)'),
+            'colour_body' => $params->get('colour_body', 'rgba(20, 141, 168, 0.5)'),
+            'colour_footer' => $params->get('colour_footer', 'rgba(20, 141, 168, 0.8)'),
+            'height' => $params->get('height', 90),
+            'width' => $params->get('width', 90),
+            'setup_source' => 'Component configuration',
+            'setup_code' => '',
+        ];
+
+        $code = $this->getDefaultGroup();
+
+        if (!empty($code) && $code !== 'N') {
+            $sql = 'SELECT code, name, website, email_header, logo, logo_align, colour_header, colour_body, colour_footer ';
+            $sql .= 'FROM #__ra_organisations ';
+            $sql .= 'WHERE code=' . $this->db->quote($code);
+            $item = $this->toolsHelper->getItem($sql);
+
+            if (!is_null($item)) {
+                $setup->setup_source = 'Organisation table';
+                $setup->setup_code = $item->code;
+                if (!empty($item->website)) {
+                    $setup->website = $item->website;
+                }
+                if (!empty($item->email_header)) {
+                    $setup->email_header = $item->email_header;
+                }
+                if (!empty($item->logo)) {
+                    $setup->logo_file = $item->logo;
+                }
+                if (!empty($item->logo_align)) {
+                    $setup->logo_align = $item->logo_align;
+                }
+                if (!empty($item->colour_header)) {
+                    $setup->colour_header = $item->colour_header;
+                }
+                if (!empty($item->colour_body)) {
+                    $setup->colour_body = $item->colour_body;
+                }
+                if (!empty($item->colour_footer)) {
+                    $setup->colour_footer = $item->colour_footer;
+                }
+            }
+        }
+
+        return $setup;
+    }
 
     public function getHome_group() {
 // Returns the home group of the current User
@@ -499,6 +587,24 @@ class Mailhelper {
         }
         $sql = 'SELECT home_group FROM #__ra_profiles WHERE id=' . $user_id;
         return $this->toolsHelper->getValue($sql);
+    }
+
+    private function getLogoPath($logo_file) {
+        if (empty($logo_file)) {
+            return '';
+        }
+
+        $logo_file = trim($logo_file);
+
+        if (strpos($logo_file, '/images/') === 0) {
+            return $logo_file;
+        }
+
+        if (strpos($logo_file, 'images/') === 0) {
+            return '/' . $logo_file;
+        }
+
+        return '/images/com_ra_mailman/' . ltrim($logo_file, '/');
     }
 
     public function getOwner_id($list_id) {
@@ -898,7 +1004,8 @@ class Mailhelper {
         $params = ComponentHelper::getParams('com_ra_tools');
         $this->email_log_level = $params->get('email_log_level', '0');
         // Find the reference point for the un-subscribe link
-        $website_base = rtrim($params->get('website'), '/') . '/';
+        $setup = $this->getEmailSetup();
+        $website_base = rtrim($setup->website, '/') . '/';
 //        if ($website_base == '') {
 //            $params = ComponentHelper::getParams('com_ra_mailman');
 //            $website_base = rtrim($params->get('website'), '/') . '/';
@@ -982,7 +1089,7 @@ class Mailhelper {
                 $message = $mailshot_body;
                 $message .= '</div>';
                 if ($this->event_id > 0) {
-                    $message .= '<div style="background: ' . $params->get('colour_body', 'rgba(20, 141, 168, 0.5)');
+                    $message .= '<div style="background: ' . $setup->colour_body;
                     $message .= '; padding-top: 10px; ">';
                     $message .= $this->bookingHelper->generateInvitation($website_base, $this->event_id, $subscriber->user_id);
                     $message .= '</div>';
@@ -1060,9 +1167,9 @@ class Mailhelper {
         }
 
 //      get component parameters
-        $params = ComponentHelper::getParams('com_ra_mailman');
-        $body = '<i>' . $params->get('email_header') . '</i><br>';
-        $website_base = rtrim($params->get('website'), '/') . '/';
+    $setup = $this->getEmailSetup();
+    $body = '<i>' . $setup->email_header . '</i><br>';
+    $website_base = rtrim($setup->website, '/') . '/';
 //        echo 'base ' . $website_base . '<br>';
 
         $sql = 'SELECT s.id, s.user_id, s.list_id, s.expiry_date, datediff(s.expiry_date, CURRENT_DATE) AS days_to_go, ';
@@ -1131,7 +1238,7 @@ class Mailhelper {
             $objSubscription->update();
         }
 
-        $body .= $params->get('email_footer');
+        $body .= $setup->email_footer;
         $body .= '';
 
         $title = 'MailMan Renewal required - ' . $row->List . ' for group ' . $row->group_code;

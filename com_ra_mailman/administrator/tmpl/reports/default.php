@@ -26,7 +26,6 @@ use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\Toolbar\Toolbar;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
-use Ramblers\Component\Ra_tools\Site\Helpers\ToolsTable;
 
 // Import CSS
 $wa = $this->document->getWebAssetManager();
@@ -37,73 +36,37 @@ $back = 'administrator/index.php?option=com_ra_tools&view=dashboard';
 $breadcrumbs = $toolsHelper->buildLink('administrator/index.php', 'Dashboard');
 $breadcrumbs .= '>' . $toolsHelper->buildLink($back, 'RA Dashboard');
 echo $breadcrumbs;
-$objTable = new ToolsTable();
-$objTable->add_header("Report,Action");
+
+$reports = [
+    'Recent Mailshots' => 'administrator/index.php?option=com_ra_mailman&task=reports.recentMailshots',
+    'Subscriptions summary' => 'administrator/index.php?option=com_ra_mailman&task=reports.subscriptionsSummary',
+    'Analyse membership enrolment' => 'administrator/index.php?option=com_ra_mailman&task=reports.membershipEnrolment',
+    'Subscriptions due' => 'administrator/index.php?option=com_ra_mailman&task=reports.showDue',
+    'Subscriptions created' => 'administrator/index.php?option=com_ra_mailman&task=reports.showCreated',
+    'Subscriptions by Status' => 'administrator/index.php?option=com_ra_mailman&task=reports.showSubscriptionsByStatus',
+    'Mailshots by Month' => 'administrator/index.php?option=com_ra_mailman&task=reports.showMailshotsByMonth',
+    'Users awaiting password reset' => 'administrator/index.php?option=com_ra_mailman&task=reports.resetUsers',
+    'Blocked users' => 'administrator/index.php?option=com_ra_mailman&task=reports.blockedUsers',
+    'Sample Email' => 'administrator/index.php?option=com_ra_mailman&task=reports.dummyEmail',
+    'Check database for invalid records' => 'administrator/index.php?option=com_ra_mailman&task=reports.checkDatabase',
+    'Duplicate Recipients' => 'administrator/index.php?option=com_ra_mailman&task=reports.duplicateRecipients',
+];
+
+if (ToolsHelper::isInstalled('com_ra_events')) {
+    $reports['Future bookable Events'] = 'administrator/index.php?option=com_ra_mailman&task=reports.bookableEvents';
+}
 ?>
 
 <form action="<?php echo JRoute::_('index.php?option=com_ra_tools&view=reports'); ?>" method="post" name="reportsForm" id="reportsForm">
     <div id="j-main-container" class="span10">
         <div class="clearfix"> </div>
         <?php
-//        $objTable->width = 30;
-//        $objTable->add_column("Report", "R");
-//        $objTable->add_column("Action", "L");
-
-        $objTable->add_item("Recent Mailshots");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.recentMailshots", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        if (ToolsHelper::isInstalled('com_ra_events')) {
-            $objTable->add_item("Future bookable Events");
-            $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.bookableEvents", "Go", False, 'red'));
-            $objTable->generate_line();
+        echo '<ul>';
+        foreach ($reports as $caption => $task) {
+            echo '<li>' . $toolsHelper->buildLink($task, $caption) . '</li>';
         }
+        echo '</ul>';
 
-        $objTable->add_item("Subscriptions summary");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.subscriptionsSummary", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        $objTable->add_item("Subscriptions due");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.showDue", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        $objTable->add_item("Subscriptions created");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.showCreated", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        $objTable->add_item("Subscriptions by Status");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.showSubscriptionsByStatus", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        $objTable->add_item("Mailshots by Month");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.showMailshotsByMonth", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        $objTable->add_item("Users awaiting password reset");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.resetUsers", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        $objTable->add_item("Blocked users");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.blockedUsers", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        $objTable->add_item("Sample Email");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.dummyEmail", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        $objTable->add_item("Check database for invalid records");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.checkDatabase", "Go", False, 'red'));
-        $objTable->generate_line();
-
-        $objTable->add_item("Duplicate Recipients");
-        $objTable->add_item($toolsHelper->buildButton("administrator/index.php?option=com_ra_mailman&task=reports.duplicateRecipients", "Go", False, 'red'));
-        $objTable->generate_line();
-
-//        $objTable->add_item("Logfile");
-//        $objTable->add_item($toolsHelper->buildLink("administrator/index.php?option=com_ra_tools&task=reports.showLogfile&offset=1", "Go", False, 'btn btn-small button-new'));
-//        $objTable->generate_line();
-
-        $objTable->generate_table();
         echo $toolsHelper->backButton($back);
         ?>
         <input type="hidden" name="task" value="" />
@@ -111,5 +74,4 @@ $objTable->add_header("Report,Action");
     </div>
 </div>
 </form>
-<?php
-echo "<!-- End of code from ' . __file . ' -->" . PHP_EOL;
+

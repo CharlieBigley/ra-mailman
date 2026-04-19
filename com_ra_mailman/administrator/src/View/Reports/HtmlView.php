@@ -10,6 +10,7 @@
  * 04/11/24 CB use getIdentity instead of getUser
  * 13/02/25 CB replace getIdentity with $this->getCurrentUser()
  * 26/04/25 CB Don't hide system menu
+ * 15/04/26 CB optionally show corporate template
  */
 
 namespace Ramblers\Component\ra_mailman\Administrator\View\Reports;
@@ -23,21 +24,26 @@ use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
 use Joomla\CMS\Toolbar\Toolbar;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 use \Joomla\CMS\User\CurrentUserInterface;
+use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 //use Ramblers\Component\ra_tools\Administrator\Helpers\ToolsHelper;
 class HtmlView extends BaseHtmlView implements CurrentUserInterface {
-
+    protected $help_url;
     protected $params;
+    protected $toolsHelper;
     protected $user;
 
     public function display($tpl = null) {
+        $layout = $this->getDashboardLayout();
+        $this->help_url = $this->getHelpUrl($layout);
         $app = Factory::getApplication();
         $this->user = $this->getCurrentUser();
         $this->user_id = $this->user->id;
 
         $this->params = ComponentHelper::getParams('com_ra_mailman');
+        $this->toolsHelper = new ToolsHelper;
+        $this->setLayout($layout);
         $this->addToolbar();
-
         parent::display($tpl);
     }
 
@@ -49,6 +55,26 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
 
         // this button display but does nothing
 //        ToolbarHelper::cancel('reports.cancel', 'Return to Dashboard');
+    }
+
+    protected function getDashboardLayout(): string {
+        if (!ComponentHelper::isEnabled('com_ra_mailman', true)) {
+            return 'default';
+        }
+
+        $params = ComponentHelper::getParams('com_ra_mailman');
+
+        return $params->get('full_version') === 'Y' ? 'default' : 'corporate';
+    }
+
+     protected function getHelpUrl(string $layout): string {
+        switch ($layout) {
+            case 'mailman':
+                return 'https://docs.stokeandnewcastleramblers.org.uk/ramblers-components.html#corporate-mailman';
+
+            default:
+                return 'https://docs.stokeandnewcastleramblers.org.uk/ramblers-components.html';
+        }
     }
 
 }

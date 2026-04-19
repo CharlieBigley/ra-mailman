@@ -26,6 +26,7 @@ use Joomla\CMS\Tag\TaggableTableTrait;
 use \Joomla\Database\DatabaseDriver;
 use \Joomla\CMS\Filter\OutputFilter;
 use \Joomla\CMS\Filesystem\File;
+use \Joomla\CMS\Filesystem\Folder;
 use \Joomla\Registry\Registry;
 use \Joomla\CMS\Helper\ContentHelper;
 
@@ -102,6 +103,14 @@ class OrganisationTable extends Table implements VersionableTableInterface, Tagg
             $array['created_by'] = Factory::getUser()->id;
         }
 
+        if (isset($array['cluster'])) {
+            $array['cluster'] = strtoupper(trim((string) $array['cluster']));
+        }
+
+        if (!empty($array['logo'])) {
+            $array['logo'] = $this->prepareLogoPath($array['logo']);
+        }
+
         if (isset($array['params']) && is_array($array['params'])) {
             $registry = new Registry;
             $registry->loadArray($array['params']);
@@ -137,6 +146,73 @@ class OrganisationTable extends Table implements VersionableTableInterface, Tagg
         }
 
         return parent::bind($array, $ignore);
+    }
+
+    private function prepareLogoPath($logo) {
+        $logo = trim((string) $logo);
+
+        if ($logo === '') {
+            return '';
+        }
+
+        $targetDirectoryRelative = 'images/com_ra_mailman';
+        $targetDirectoryAbsolute = JPATH_ROOT . '/' . $targetDirectoryRelative;
+        $logoRelative = $this->normaliseLogoRelativePath($logo);
+
+        if (!Folder::exists($targetDirectoryAbsolute)) {
+            Folder::create($targetDirectoryAbsolute);
+        }
+
+        $filename = basename(str_replace('\\', '/', $logoRelative));
+
+        if ($filename === '') {
+            return '';
+        }
+
+        $targetAbsolute = $targetDirectoryAbsolute . '/' . $filename;
+        $sourceAbsolute = JPATH_ROOT . '/' . ltrim($logoRelative, '/');
+
+        if (File::exists($sourceAbsolute) && $sourceAbsolute !== $targetAbsolute) {
+            File::copy($sourceAbsolute, $targetAbsolute, null, true);
+            return $filename;
+        }
+
+        if (File::exists($targetAbsolute) || $sourceAbsolute === $targetAbsolute) {
+            return $filename;
+        }
+
+        return $filename;
+    }
+
+    private function normaliseLogoRelativePath($logo) {
+        $logo = trim((string) $logo);
+        $parts = explode('#', $logo);
+
+        foreach ($parts as $part) {
+            $part = trim($part);
+
+            if ($part === '') {
+                continue;
+            }
+
+            $part = preg_replace('/\?.*$/', '', $part);
+
+            if (strpos($part, 'joomlaImage://') === 0) {
+                $part = preg_replace('#^joomlaImage://[^/]+/#', '', $part);
+            }
+
+            $part = ltrim($part, '/');
+
+            if (strpos($part, 'local-images/') === 0) {
+                return 'images/' . substr($part, strlen('local-images/'));
+            }
+
+            if ($part !== '') {
+                return $part;
+            }
+        }
+
+        return '';
     }
 
     /**

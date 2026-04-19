@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <form addfieldprefix="Ramblers\Component\Ra_mailman\Administrator\Field">
   <fieldset>
-    <field name="id" type="text" readonly="true" class="readonly" default="0" description="JGLOBAL_FIELD_ID_DESC"/>
+    <field name="id" label="ID" type="text" readonly="true" class="readonly" default="0" description="JGLOBAL_FIELD_ID_DESC"/>
     <field name="nation_id" 
-      type="foreignkey" 
-      label="Nation" default="0" input_type="list" 
-      table="#__ra_nations" 
-      key_field="id" 
+      type="sql" 
+      label="Nation" default="0"
+      query="SELECT id, name FROM #__ra_nations ORDER BY name"
+      key_field="id"
       value_field="name"
     />
     <field name="code" type="text" label="Code" hint="COM_RA_TOOLS_FORM_LBL_AREA_CODE"/>
@@ -18,8 +18,9 @@
       <fieldset name="emailheader" label="Email header">
         <field name="logo" 
           type="media" 
+          directory="images/com_ra_mailman"
           label="Logo" 
-          description="Upload a logo for this Area. It will be used in the header of the email."
+          description="Upload a logo for this Group/Area. It will be used in the header of the email."
         />
         <field
             name="logo_align"
@@ -82,7 +83,10 @@
     </field>
     <field name="checked_out" type="hidden" filter="unset"/>
     <field name="checked_out_time" default="0000-00-00 00:00:00" type="hidden" filter="unset"/>
-    <field name="created_by" type="createdby" default="0" label="JGLOBAL_FIELD_CREATED_BY_LABEL" description="JGLOBAL_FIELD_CREATED_BY_DESC" hint="COM_RA_TOOLS_FORM_LBL_AREA_CREATED_BY"/>
+    <field name="created" type="text" label="Date created" readonly="true" description="JGLOBAL_FIELD_CREATED_DESC" />
+    <field name="created_by" type="createdby" readonly="true" label="JGLOBAL_FIELD_CREATED_BY_LABEL" description="JGLOBAL_FIELD_CREATED_BY_DESC" />
+    <field name="modified" type="text"  readonly="true" label="Date modified" description="JGLOBAL_FIELD_MODIFIED_BY_DESC" />
+    <field name="modified_by" type="createdby" readonly="true" label="JGLOBAL_FIELD_MODIFIED_BY_LABEL" description="JGLOBAL_FIELD_MODIFIED_BY_DESC"/>
     <field name="version_note" type="text" label="JGLOBAL_FIELD_VERSION_NOTE_LABEL" description="JGLOBAL_FIELD_VERSION_NOTE_DESC" class="inputbox" size="45" labelclass="control-label"/>
     </fieldset>
 </form>

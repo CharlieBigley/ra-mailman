@@ -52,12 +52,24 @@ class OrganisationsModel extends ListModel {
         $query = $db->getQuery(true);
 
         $query->select('a.*');
-$query->select('n.name as nation');
+        $query->select('n.name as nation');
+        $query->select('c.name as cluster_name');
 
         $query->from($db->quoteName('#__ra_organisations', 'a'));
         $query->LeftJoin('#__ra_nations AS n ON n.id = a.nation_id');
+        $query->LeftJoin('#__ra_clusters AS c ON c.code = a.cluster');
         // Filter by search
         $search = $this->getState('filter.search');
+        $recordType = $this->getState('filter.record_type');
+        $cluster = $this->getState('filter.cluster');
+
+        if (!empty($recordType)) {
+            $query->where('a.record_type = ' . $db->quote($recordType));
+        }
+
+        if (!empty($cluster)) {
+            $query->where('a.cluster = ' . $db->quote($cluster));
+        }
 
         if (!empty($search)) {
             if (stripos($search, 'id:') === 0) {
@@ -85,6 +97,20 @@ $query->select('n.name as nation');
     protected function populateState($ordering = 'a.name', $direction = 'asc') {
         // List state information.
         parent::populateState($ordering, $direction);
+
+        $recordType = $this->getUserStateFromRequest($this->context . '.filter.record_type', 'filter_record_type');
+        $this->setState('filter.record_type', $recordType);
+
+        $cluster = $this->getUserStateFromRequest($this->context . '.filter.cluster', 'filter_cluster');
+        $this->setState('filter.cluster', $cluster);
+    }
+
+    protected function getStoreId($id = '') {
+        $id .= ':' . $this->getState('filter.search');
+        $id .= ':' . $this->getState('filter.record_type');
+        $id .= ':' . $this->getState('filter.cluster');
+
+        return parent::getStoreId($id);
     }
 
 }

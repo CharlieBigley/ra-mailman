@@ -86,7 +86,7 @@ class HtmlView extends BaseHtmlView {
         }
 
         $this->addToolbar();
-
+        Factory::getApplication()->setUserState('com_ra_mailman.reports.callback', '');
         return parent::display($tpl);
     }
 

@@ -32,6 +32,7 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsTable;
 class OrganisationController extends FormController {
 
     protected $back;
+    protected $callback;
     protected $toolsHelper;
     protected $view_item = 'organisation';
     protected $view_list = 'organisations';
@@ -45,39 +46,19 @@ class OrganisationController extends FormController {
         parent::__construct($config, $factory, $app, $input);
 
         $this->toolsHelper = new ToolsHelper;
-        $this->back = 'administrator/index.php?option=com_ra_mailman&view=organisations';
-
+        $this->back = '/administrator/index.php?option=com_ra_mailman&view=organisations';
+        $this->callback = $app->getUserState('com_ra_mailman.reports.callback');
         $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
         $wa->registerAndUseStyle('ramblers', 'com_ra_mailman/ramblers.css');
     }
 
-    /**
-     * Method to get a model object, loading it if required.
-     *
-     * @param   string  $name    The model name. Optional.
-     * @param   string  $prefix  The class prefix. Optional.
-     * @param   array   $config  Configuration array for model. Optional.
-     *
-     * @return  object  The model.
-     *
-     * @since   3.0.0
-     */
-    public function getModel($name = 'Organisation', $prefix = 'Administrator', $config = array('ignore_request' => true)) {
-        // Some mis-wirings/toolbars end up requesting the plural model name; normalise it.
-        if ($name === '' || strcasecmp($name, 'Organisations') === 0)
-        {
-            $name = 'Organisation';
+    public function cancel($key=null){
+        // return to the calling page, which may be the dashboard or the list of organisations
+        if ($this->callback == 'dashboard') {
+             $this->setRedirect('/administrator/index.php?option=com_ra_tools&view=dashboard');
+        } else {
+            $this->setRedirect($this->back);
         }
-
-        $model = parent::getModel($name, $prefix, $config);
-
-        // Defensive fallback: avoid returning false which causes FormController::save() to fatal.
-        if ($model === false && strcasecmp($name, 'Organisation') !== 0)
-        {
-            $model = parent::getModel('Organisation', $prefix, $config);
-        }
-
-        return $model;
     }
 
     public function configure(){
@@ -112,6 +93,47 @@ class OrganisationController extends FormController {
         $return = base64_encode('index.php?option=com_ra_tools&view=dashboard');
         $this->setRedirect('index.php?option=com_ra_mailman&view=organisation&layout=edit&id=' . $id . '&return=' . $return);
     }
+
+    /**
+     * Method to get a model object, loading it if required.
+     *
+     * @param   string  $name    The model name. Optional.
+     * @param   string  $prefix  The class prefix. Optional.
+     * @param   array   $config  Configuration array for model. Optional.
+     *
+     * @return  object  The model.
+     *
+     * @since   3.0.0
+     */
+    public function getModel($name = 'Organisation', $prefix = 'Administrator', $config = array('ignore_request' => true)) {
+        // Some mis-wirings/toolbars end up requesting the plural model name; normalise it.
+        if ($name === '' || strcasecmp($name, 'Organisations') === 0)
+        {
+            $name = 'Organisation';
+        }
+
+        $model = parent::getModel($name, $prefix, $config);
+
+        // Defensive fallback: avoid returning false which causes FormController::save() to fatal.
+        if ($model === false && strcasecmp($name, 'Organisation') !== 0)
+        {
+            $model = parent::getModel('Organisation', $prefix, $config);
+        }
+
+        return $model;
+    }
+
+    public function save($key = null, $urlVar = null) {
+        // save the record, then return to the calling page, which may be the dashboard or the list of organisations
+        $result = parent::save();
+        if ($result) {
+            if ($this->callback == 'dashboard') {
+                $this->setRedirect('/administrator/index.php?option=com_ra_tools&view=dashboard');
+            } else {
+                $this->setRedirect($this->back);
+            }
+        }
+    }   
 
     public function showMembers(){
         $code = Factory::getApplication()->input->getCmd('code', '');
@@ -258,6 +280,30 @@ class OrganisationController extends FormController {
         return substr($token,0,$space);
         }
 
+    private function formatDateForSql($value, $db) {
+        if (empty($value)) {
+            return 'NULL';
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return 'NULL';
+        }
+
+        $formats = ['d/m/y', 'd/m/Y', 'Y-m-d', 'd-m-y', 'd-m-Y'];
+
+        foreach ($formats as $format) {
+            $date = \DateTime::createFromFormat('!' . $format, $value);
+
+            if ($date !== false) {
+                return $db->quote($date->format('Y-m-d'));
+            }
+        }
+
+        return 'NULL';
+    }
+
     public function test(){
         // http://127.0.0.0/administrator/index.php?option=com_ra_mailman&task=organisation.test
         $db = Factory::getContainer()->get('DatabaseDriver');
@@ -273,6 +319,14 @@ class OrganisationController extends FormController {
             $sql .= 'WHERE u.email = ' . $db->quote($row->email);
             $id = $this->toolsHelper->getValue($sql);
             if ($id){   
+                $membershipExpiryDate = $this->formatDateForSql($row->membershipExpiryDate, $db);
+                $ramblersJoinDate = $this->formatDateForSql($row->ramblersJoinDate, $db);
+                $areaJoinedDate = $this->formatDateForSql($row->areaJoinedDate, $db);
+                $groupJoinedDate = $this->formatDateForSql($row->groupJoinedDate, $db);
+                $emailPermissionLastUpdated = $this->formatDateForSql($row->emailPermissionLastUpdated, $db);
+                $postPermissionLastUpdated = $this->formatDateForSql($row->postPermissionLastUpdated, $db);
+                $telephonePermissionLastUpdated = $this->formatDateForSql($row->telephonePermissionLastUpdated, $db);
+
                 $sql = 'UPDATE #__ra_profiles ';
                 $sql .= 'SET salesforceId=' . $db->quote($row->salesforceId) . ', ';
                 $sql .= 'home_group=' . $db->quote($row->groupCode) . ', ';
@@ -299,18 +353,18 @@ class OrganisationController extends FormController {
                 $sql .= 'email=' . $db->quote($row->email) . ', ';            
                 $sql .= 'landlineTelephone=' . $db->quote($row->landlineTelephone) . ', ';
                 $sql .= 'mobileNumber=' . $db->quote($row->mobileNumber) . ', ';
-                $sql .= 'membershipExpiryDate=' . $db->quote($row->membershipExpiryDate) . ', ';
-                $sql .= 'ramblersJoinDate=' . $db->quote($row->ramblersJoinDate) . ', ';
+                $sql .= 'membershipExpiryDate=' . $membershipExpiryDate . ', ';
+                $sql .= 'ramblersJoinDate=' . $ramblersJoinDate . ', ';
                 $sql .= 'areaName=' . $db->quote($row->areaName) . ', ';
-                $sql .= 'areaJoinedDate=' . $db->quote($row->areaJoinedDate) . ', ';           
-                $sql .= 'groupJoinedDate=' . $db->quote($row->groupJoinedDate) . ', ';                
+                $sql .= 'areaJoinedDate=' . $areaJoinedDate . ', ';           
+                $sql .= 'groupJoinedDate=' . $groupJoinedDate . ', ';                
                 $sql .= 'volunteer=' . $db->quote($row->volunteer) . ', ';                
                 $sql .= 'emailMarketingConsent=' . $db->quote($row->emailMarketingConsent) . ', ';
-                $sql .= 'emailPermissionLastUpdated=' . $db->quote($row->emailPermissionLastUpdated) . ', ';
+                $sql .= 'emailPermissionLastUpdated=' . $emailPermissionLastUpdated . ', ';
                 $sql .= 'postDirectMarketing=' . $db->quote($row->postDirectMarketing) . ', ';           
-                $sql .= 'postPermissionLastUpdated=' . $db->quote($row->postPermissionLastUpdated) . ', ';                
+                $sql .= 'postPermissionLastUpdated=' . $postPermissionLastUpdated . ', ';                
                 $sql .= 'telephoneDirectMarketing=' . $db->quote($row->telephoneDirectMarketing) . ', ';                
-                $sql .= 'telephonePermissionLastUpdated=' . $db->quote($row->telephonePermissionLastUpdated) . ', ';
+                $sql .= 'telephonePermissionLastUpdated=' . $telephonePermissionLastUpdated . ', ';
                 $sql .= 'walkProgrammeOptOut=' . $db->quote($row->walkProgrammeOptOut) . ', ';
                 $sql .= 'affiliateMemberPrimaryGroup=' . $db->quote($row->affiliateMemberPrimaryGroup) . ' ';
                 $sql .= 'WHERE id=' . $id; 
