@@ -47,12 +47,13 @@ class ProfilesController extends AdminController {
         $this->toolsHelper = new ToolsHelper;
         $this->app = Factory::getApplication();
         $this->back = 'administrator/index.php?option=com_ra_tools&view=dashboard';
-
-        $wa = $this->app->getDocument()->getWebAssetManager();
+// Import CSS
+        $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
         $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
     }   
 
     public function cancel($key = null, $urlVar = null) {
+        // 04/05/26 If invoked, this gives an error
         $this->setRedirect($this->back);
     }
 
@@ -71,19 +72,16 @@ class ProfilesController extends AdminController {
         return parent::getModel($name, $prefix, array('ignore_request' => true));
     }
 
-    public function back() {
-        $this->setRedirect($this->back);
-    }
-
     public function load($code = 'NS03') {
         // temp code for invoking the load process
         $code = $this->app->input->getAlnum('code');
         $loadHelper = new LoadHelper;
         $result = $loadHelper->loadMembers($code);
-        echo 'After loadMembers<br>';
+        echo 'Organisations Controller: <b>After loadMembers</b><br>';
         foreach ($loadHelper->messages as $message) {
              echo $message . '<br>';
         }   
+        echo $this->toolsHelper->backButton('administrator/' . $this->back);
         die;
         if ($result === true) {
             $this->setMessage(Text::_('COM_RA_MAILMAN_LOAD_SUCCESS'), 'success');

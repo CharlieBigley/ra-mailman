@@ -41,26 +41,22 @@ if (!empty($code) && $code !== 'N') {
 } else {
     $subheading = 'All records';
 }   
-echo '<h4>Scope '  . $subheading . '</h4>';
+
+/*
 $admin_reports = [
     // only show these reports to superusers
-
-    'Users awaiting password reset' => 'administrator/index.php?option=com_ra_mailman&task=reports.resetUsers',
 //    'Search all Logfile records' => 'administrator/index.php?option=com_ra_tools&view=logfiles&callback=dashboard',
     'Show recent Logfile records' => 'administrator/index.php?option=com_ra_tools&task=reports.showLogfile&option=com_ra_mailman',
 ];
 if ($this->user_id == 1) { 
     $admin_reports['Clusters'] = 'administrator/index.php?option=com_ra_tools&view=clusters';
 }
-
+*/
 $reports = [
     'Members by Group' => 'administrator/index.php?option=com_ra_members&task=reports.membersByGroup',
-    'Membership statistics' => 'administrator/index.php?option=com_ra_members&task=reports.memberStatistics',
     'Mailshots by Month' => 'administrator/index.php?option=com_ra_mailman&task=reports.showMailshotsByMonth',
     'Recent Mailshots' => 'administrator/index.php?option=com_ra_mailman&task=reports.recentMailshots',
     'Subscriptions summary' => 'administrator/index.php?option=com_ra_mailman&task=reports.subscriptionsSummary',
-    'Members enrolled, by month' => 'administrator/index.php?option=com_ra_members&task=reports.analyseEnrolment',
-    'Members lapsing, by month' => 'administrator/index.php?option=com_ra_members&task=reports.analyseLapsing',
     
     'Preview Email' => 'administrator/index.php?option=com_ra_mailman&task=reports.emailPreview',
    
@@ -73,29 +69,28 @@ $reports = [
         <div class="clearfix"> </div>
         <?php
         if ($this->toolsHelper->isSuperuser()){
-            echo '<h4>System reports</h4>';
+            echo '<h4>Scope All records</h4>';   
             echo '<ul>';
-            foreach ($admin_reports as $caption => $task) {
-                echo '<li>' . $this->toolsHelper->buildLink($task, $caption) . '</li>';
+         
+             foreach ($reports as $caption => $task) {
+                echo '<li>' . $this->toolsHelper->buildLink($task , $caption) . '</li>';
+            }           
+                echo '</ul>';
             }
-         foreach ($reports as $caption => $task) {
-            echo '<li>' . $this->toolsHelper->buildLink($task , $caption) . '</li>';
-        }           
+            echo '<h4>Scope '  . $subheading . '</h4>';
+            echo '<h4>Area reports</h4>';
+            echo '<ul>';
+            foreach ($reports as $caption => $task) {
+                echo '<li>' . $this->toolsHelper->buildLink($task . '&scope=A', $caption) . '</li>';
+            }
             echo '</ul>';
-        }
-        echo '<h4>Area reports</h4>';
-        echo '<ul>';
-        foreach ($reports as $caption => $task) {
-            echo '<li>' . $this->toolsHelper->buildLink($task . '&scope=A', $caption) . '</li>';
-        }
-        echo '</ul>';
-        echo '<h4>Group reports</h4>';
-        echo '<ul>';
-        foreach ($reports as $caption => $task) {
-            echo '<li>' . $this->toolsHelper->buildLink($task . '&scope=G', $caption) . '</li>';
-        }
-        echo '</ul>';
-        echo $this->toolsHelper->backButton($back);
+            echo '<h4>Group reports</h4>';
+            echo '<ul>';
+            foreach ($reports as $caption => $task) {
+                echo '<li>' . $this->toolsHelper->buildLink($task . '&scope=G', $caption) . '</li>';
+            }
+            echo '</ul>';
+            echo $this->toolsHelper->backButton($back);
         ?>
         <input type="hidden" name="task" value="" />
         <?php echo HTMLHelper::_('form.token'); ?>

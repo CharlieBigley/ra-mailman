@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.6.5
+ * @version    4.7.2
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -12,6 +12,7 @@
  * 08/08/25 CB SELECT all fields
  * 16/03/26 CB filter by group if not full_version
  * 17/03/26 CB remove diagnostic display
+ * 19/05/26 CB new filters for Open/Closed and home group only
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -56,6 +57,8 @@ class Mail_lstsModel extends ListModel {
                 'a.home_group_only',
                 'a.emails_outstanding',
                 'a.state',
+                'record_type',
+                'home_group_only',
             );
             $this->search_fields = $config['filter_fields'];
         }
@@ -81,6 +84,12 @@ class Mail_lstsModel extends ListModel {
 
         $context = $this->getUserStateFromRequest($this->context . '.filter.search', 'filter_search');
         $this->setState('filter.search', $context);
+
+        $context = $this->getUserStateFromRequest($this->context . '.filter.record_type', 'filter_record_type', '');
+        $this->setState('filter.record_type', $context);
+
+        $context = $this->getUserStateFromRequest($this->context . '.filter.home_group_only', 'filter_home_group_only', '');
+        $this->setState('filter.home_group_only', $context);
 
         // Split context into component and optional section
         if (!empty($context)) {
@@ -109,6 +118,8 @@ class Mail_lstsModel extends ListModel {
     protected function getStoreId($id = '') {
         // Compile the store id.
         $id .= ':' . $this->getState('filter.search');
+        $id .= ':' . $this->getState('filter.record_type');
+        $id .= ':' . $this->getState('filter.home_group_only');
         $id .= ':' . $this->getState('filter.state');
 
         return parent::getStoreId($id);
@@ -149,6 +160,18 @@ class Mail_lstsModel extends ListModel {
         }
         if (($group !== 'N') AND ($toolsHelper->isSuperuser() === false)) {
             $query->where('a.group_code=' . $this->_db->quote($group));
+        }
+
+        $recordType = $this->getState('filter.record_type');
+
+        if ($recordType !== null && $recordType !== '') {
+            $query->where('a.record_type = ' . $this->_db->quote($recordType));
+        }
+
+        $homeGroupOnly = $this->getState('filter.home_group_only');
+
+        if ($homeGroupOnly !== null && $homeGroupOnly !== '') {
+            $query->where('a.home_group_only = ' . (int) $homeGroupOnly);
         }
 
         // Filter by search in title

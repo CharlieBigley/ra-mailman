@@ -23,7 +23,6 @@ use \Joomla\CMS\Factory;
 use Joomla\CMS\Helper\ContentHelper;
 use \Joomla\CMS\User\CurrentUserInterface;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
-use \Joomla\CMS\Language\Text;
 
 /**
  * View class for a single Mailshot.
@@ -88,7 +87,6 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
         $model->setList($this->list_id);
         $sql = 'SELECT date_sent from #__ra_mail_shots WHERE id=' . $this->id;
         $this->date_sent = $this->objHelper->getValue($sql);
-//        echo 'date_sent ' . $this->date_sent;
         if (($this->date_sent == '0000-00-00') or ($this->date_sent == '')) {
             $model->setReadonly(False);
         } else {
@@ -131,10 +129,8 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
 
         // If not checked out, can save the item.
         if (!$checkedOut && ($canDo->get('core.edit') || ($canDo->get('core.create')))) {
-            // 11/08/23 apply acts the save as does Save&Return
-            ToolbarHelper::apply('mailshot.saveContinue', 'JTOOLBAR_APPLY');
-            ToolbarHelper::apply('mailshot.apply', 'Save and continue');
-            ToolbarHelper::save('mailshot.save', 'JTOOLBAR_SAVE');  //Works as Save&Return
+            ToolbarHelper::apply('mailshot.apply', 'JTOOLBAR_APPLY');
+            ToolbarHelper::save('mailshot.save', 'JTOOLBAR_SAVE');
         }
 
         if (empty($this->item->id)) {

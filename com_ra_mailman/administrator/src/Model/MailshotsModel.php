@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.3.4
+ * @version    4.7.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -11,6 +11,7 @@
  * 31/10/24 CB allow filtering
  * 09/04/25 CB correct WHERE clause for list_id
  * 16/03/26 CB filter by group if not full_version
+ * 20/05/26 CB new filters for Open/Closed and home group only, only select record_type=M (Ignore Events)
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Model;
@@ -131,20 +132,15 @@ class MailshotsModel extends ListModel {
 
         $query = $this->_db->getQuery(true);
 
-        $query->select('a.id, a.title, a.body');
-        $query->select('a.date_sent, a.mail_list_id, a.state');
-        $query->select('a.processing_started');
-        $query->select('a.attachment');
-        $query->select('a.created, a.modified');
-        $query->select('a.modified_by');
-
+        $query->select('a.*');
         $query->from('`#__ra_mail_shots` AS a');
 
         $query->select('mail_list.name AS `list_name`');
         $query->leftJoin($this->_db->qn('#__ra_mail_lists') . ' AS `mail_list` ON mail_list.id = a.mail_list_id');
         $query->select('u.name AS `modified_by`');
         $query->leftJoin($this->_db->qn('#__users') . ' AS `u` ON u.id = a.modified_by');
-
+        // Only select MailMan mailshots (not Events)
+        $query->where('a.record_type = "M"');
         // Filter by list
         $app = Factory::getApplication();
         $list_id = $app->input->getInt('list_id', '0');

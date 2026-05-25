@@ -17,6 +17,7 @@
  * 03/11/25 CB show count of blocked users
  * 28/03/26 CB Analysis of members by group
  * 13/04/26 CB Users with a Profile
+ * 22/05/26 CB recentMailshots
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Controller;
@@ -630,7 +631,7 @@ class ReportsController extends FormController {
         $body .= '</div>';
         echo $body;
 // Footer comprises the footer from the list, plus the owners email address, plus the component footer
-    $footer = '<div style="background: ' . $setup->colour_footer;
+        $footer = '<div style="background: ' . $setup->colour_footer;
         $footer .= '; border-radius: 5%; padding: 10px;">';
         // Find a list footer
         $sql = 'SELECT footer FROM #__ra_mail_lists ';
@@ -638,7 +639,7 @@ class ReportsController extends FormController {
         $sql .= 'ORDER BY id DESC LIMIT 1';
         $footer .= $this->toolsHelper->getItem($sql)->footer;
         $footer .= '<br>';
-    $footer .= $setup->email_footer;
+        $footer .= $setup->email_footer;
         $footer .= '</div>';
         echo $footer;
         echo '<br><br>';
@@ -648,14 +649,14 @@ class ReportsController extends FormController {
             echo ' (' . $setup->setup_code . ')';
         }
         echo '<br>';
-    echo '<b>header:</b> ' . $setup->colour_header . '<br>';
-    echo '<b>body:</b> ' . $setup->colour_body . '<br>';
+        echo '<b>header:</b> ' . $setup->colour_header . '<br>';
+        echo '<b>body:</b> ' . $setup->colour_body . '<br>';
         echo '<b>event:</b> ' . $params->get('colour_event') . '<br>';
-    echo '<b>footer:</b> ' . $setup->colour_footer . '<br>';
+        echo '<b>footer:</b> ' . $setup->colour_footer . '<br>';
 
-    echo '<b>logo:</b> ' . $setup->logo_file . ', height=' . $setup->height;
-    echo ', width=' . $setup->width . '<br>';
-    echo '<b>logo align:</b> ' . $setup->logo_align . '<br>';
+        echo '<b>logo:</b> ' . $setup->logo_file . ', height=' . $setup->height;
+        echo ', width=' . $setup->width . '<br>';
+        echo '<b>logo align:</b> ' . $setup->logo_align . '<br>';
         echo '<br>';
         $saturation = [];
         $saturation[] = '0.2';
@@ -720,110 +721,183 @@ class ReportsController extends FormController {
             $objTable->generate_line();
         }
         $objTable->generate_table();
-//        echo '<h4>This will appear on the mailshot like this:</h4><br>';
-        $target = 'administrator/index.php?option=com_config&view=component&component=com_ra_mailman';
-        echo $this->toolsHelper->buildButton($target, 'Configure', True, 'red');
-        echo $this->toolsHelper->backButton($this->back);
-    }
+//      We can be updating the system configuration, or the Area/Group details
 
-
-    public function resetUsers() {
-        ToolBarHelper::title($this->prefix . 'Users awaiting password reset');
-        echo $this->breadcrumbs;
-        $objTable = new ToolsTable();
-        $objTable->add_header("Name,email,Preferred name,Group,Lists,ID");
-
-        $sql = "SELECT u.id, u.name as 'User', u.email,  ";
-        $sql .= 'p.home_group, p.preferred_name ';
-        $sql .= 'FROM  `#__users` AS u ';
-        $sql .= 'LEFT JOIN `#__ra_profiles` AS p on p.id = u.id ';
-        $sql .= ' WHERE u.requireReset=1';
-        $sql .= ' ORDER BY id';
-//        $target = 'administrator/index.php?option=com_users&view=users';
-        $rows = $this->toolsHelper->getRows($sql);
-        foreach ($rows as $row) {
-            $objTable->add_item($row->User);
-            $objTable->add_item($row->email);
-            $objTable->add_item($row->preferred_name);
-            $objTable->add_item($row->home_group);
-            $count = $this->countLists($row->id);
-            $objTable->add_item($count);
-            $objTable->add_item($row->id);
-            $objTable->generate_line();
+        if ($this->scope == '') {
+            $target = 'administrator/index.php?option=com_config&view=component&component=com_ra_mailman';
+        } else {              
+            if ($this->scope == 'A') {
+                $lookup_code = substr($setup->setup_code, 0, 2);           
+            } else {
+                $lookup_code = $setup->setup_code;
+            }
+            $sql = 'SELECT id FROM #__ra_organisations WHERE code="' . $lookup_code . '"';
+            $id = $this->toolsHelper->getValue($sql);
+            $target = 'administrator/index.php?option=com_ra_members&view=organisation&layout=edit&callback=dashboard';           
+            $target .= '&scope=' . $this->scope . '&id=' . $id;
         }
-        $objTable->generate_table();
-        echo $this->toolsHelper->backButton($this->back);
+        echo $this->toolsHelper->buildButton($target, 'Configure', True, 'red');
+        echo $this->toolsHelper->backButton($this->back. '&scope=' . $this->scope);
     }
 
     public function recentMailshots() {
         ToolBarHelper::title('Recent Mailshots');
         echo $this->breadcrumbs;
         $mailHelper = new MailHelper;
-        echo '<h4>Scope '  . $this->subheading . '</h4>';    
+        echo '<h4>Scope '  . $this->subheading . '</h4>';
+        $max = 20;
         $objTable = new ToolsTable();
-        $objTable->add_header("List,List id,Mailshots,Recent ID,Started,Sent,Subscribers,Outstanding,");
-
-        $sql = 'SELECT id, group_code, name, emails_outstanding ';
-        $sql .= 'FROM #__ra_mail_lists ';
-        $sql .= $this->buildCriterion('WHERE','group_code');
-        $sql .= 'ORDER BY group_code, name';
-        $target = 'administrator/index.php?option=com_ra_mailman&task=system.sendEmail&id=';
-        $found = false;
+        $objTable->add_header("Status,Modified,Group,List,Mailshot,Started,Sent,Subscribers,Outstanding,");
+        $sql = 'SELECT l.id, l.group_code,l.modified, l.name, ms.id AS mailshot_id,ms.title, ';
+        $sql .= 'ms.processing_started, ms.date_sent, l.emails_outstanding ';
+        $sql .= 'FROM #__ra_mail_lists AS l ';
+        $sql .= 'INNER JOIN #__ra_mail_shots AS ms on ms.mail_list_id = l.id ';
+        $sql .= $this->buildCriterion('WHERE', 'l.group_code');
+        $sql .= 'ORDER BY ms.modified DESC ';
+        $sql .= 'LIMIT ' . $max;
         $rows = $this->toolsHelper->getRows($sql);
+        $has_in_progress = false;
         foreach ($rows as $row) {
-            $count_subscribers = $mailHelper->countSubscribers($row->id);
+            $link = '';
+            $has_date_sent = $this->mailHelper->hasMailshotDate($row->date_sent);
+            $has_processing_started = $this->mailHelper->hasMailshotDate($row->processing_started);
 
-            $details = $row->group_code . '/' . $row->name;
-            $objTable->add_item($details);
-            $objTable->add_item($row->id);
-            $sql = 'SELECT COUNT(id) FROM #__ra_mail_shots WHERE mail_list_id=' . $row->id;
-            $objTable->add_item($this->toolsHelper->getValue($sql));
-            $last_mailshot = $mailHelper->lastMailshot($row->id);
-            $objTable->add_item($last_mailshot->id);
-            // Only get users who have not yet received their message
-            $subscribers = $mailHelper->getSubscribers($last_mailshot->id, 'Y');
-            $actually_outstanding = count($subscribers);
-            if (is_null($last_mailshot->processing_started)) {
+            if ($has_date_sent) {
+                $actually_outstanding = 0;
+                if ((int) $row->emails_outstanding > 0) {
+                    Factory::getApplication()->enqueueMessage('Mailshot ' . $row->title . ' for ' . $row->group_code . ' ' . $row->name . ' had date_sent set but emails_outstanding was still ' . $row->emails_outstanding . '. The count has been reset to 0.', 'warning');
+                    $this->mailHelper->updateOutstanding($row->id, 0);
+                    $row->emails_outstanding = 0;
+                }
+            } elseif ($has_processing_started) {
+                $actually_outstanding = $mailHelper->countSubscribersOutstanding($row->mailshot_id);
+                if ($row->emails_outstanding !== $actually_outstanding) {
+                    Factory::getApplication()->enqueueMessage('Outstanding email count for ' . $row->group_code . ' ' . $row->name . ' was out of date (' . $row->emails_outstanding . '), now corrected to ' . $actually_outstanding, 'notice');
+                    $this->mailHelper->updateOutstanding($row->id, $actually_outstanding);
+                    $row->emails_outstanding = $actually_outstanding;
+                }
+            } else {
+                $actually_outstanding = (int) $row->emails_outstanding;
+            }
 
+            $status = $this->getRecentMailshotStatus($row->processing_started, $row->date_sent, $actually_outstanding);
+            $row_colour = $this->getRecentMailshotRowColour($status);
+
+            $objTable->add_item($status . ' ' . $this->getRecentMailshotStatusLabel($status));
+            $objTable->add_item(HTMLHelper::_('date', $row->modified, 'H:i d/m/y'));
+            $objTable->add_item($row->group_code);
+            $objTable->add_item($row->name);
+            $objTable->add_item($row->title);
+
+            if (!$has_processing_started) {
                 $objTable->add_item('');
                 $objTable->add_item('');
             } else {
-                $objTable->add_item($last_mailshot->processing_started);
-                $objTable->add_item($last_mailshot->date_sent);
+                $objTable->add_item(HTMLHelper::_('date', $row->processing_started, 'H:i d/m/y'));
+                if ($has_date_sent) {
+                    $objTable->add_item(HTMLHelper::_('date', $row->date_sent, 'H:i d/m/y'));
+                } else {
+                    $objTable->add_item('');
+                }
             }
+
+            // Count number of subscribers
+            $count_subscribers = $mailHelper->countSubscribers($row->id);
             $objTable->add_item($count_subscribers);
+
             if ($actually_outstanding == 0) {
                 $objTable->add_item('');
             } else {
-                $target = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.showOutstanding&id=';
-                if ($row->emails_outstanding !== $actually_outstanding) {
-                    $details = '(' . $row->emails_outstanding . ')';
-                }
-                $details .= $this->toolsHelper->buildLink($target . $last_mailshot->id, $actually_outstanding);
-                $objTable->add_item($details);
+                $target = 'administrator/index.php?option=com_ra_mailman&task=mail_lst.showOutstanding&id=' . $row->mailshot_id;
+                $objTable->add_item($this->toolsHelper->buildLink($target, $actually_outstanding));
+            }   
+
+            if ($status === 2 || $status === 3) {
+                $target = 'administrator/index.php?option=com_ra_mailman&task=mailshot.cancelSending&mailshot_id=';
+                $target .= $row->mailshot_id . '&total=' . $actually_outstanding;
+                $target .= '&scope=' . $this->scope;
+                $link = $this->toolsHelper->buildButton($target, 'Cancel', false, 'red');
+
+                $target = 'administrator/index.php?option=com_ra_mailman&task=mailshot.send&force=Y';
+                $target .= '&mailshot_id=' . $row->mailshot_id;
+                $link .= $this->toolsHelper->buildButton($target, 'Force Send');
             }
 
-            if ($actually_outstanding > 0) {
-                if (is_null($last_mailshot->date_sent)) {
-                    $target = 'administrator/index.php?option=com_ra_mailman&task=mailshot.send&mailshot_id=';
-                    $target .= $row->id . '&total=' . $actually_outstanding;
-                    $link = $this->toolsHelper->buildButton($target, 'Force Send');
-                    $objTable->add_item($link);
-                }
+            if ($status === 3) {
+                $has_in_progress = true;
             }
 
-            $objTable->generate_line();
+            if ($link !== '') {
+                $objTable->add_item($link);
+            } else {
+                $objTable->add_item('');
+            }
+
+            $objTable->generate_line($row_colour);
         }
         $objTable->generate_table();
-        if ($found) {
-            echo 'Dispatch of the emails will take place on the next scheduled run of the off-line batch job<br>';
-            echo 'You can force immediate displatch from here<br>';
+        if ($has_in_progress) {
+            Factory::getApplication()->enqueueMessage('One or more mailshots are currently being dispatched. The outstanding count will reduce as sending progresses.', 'info');
         }
         echo $this->toolsHelper->backButton($this->back);
     }
 
+    private function getRecentMailshotStatus($processingStarted, $dateSent, $outstanding) {
+        $has_processing_started = $this->mailHelper->hasMailshotDate($processingStarted);
+        $has_date_sent = $this->mailHelper->hasMailshotDate($dateSent);
+        $outstanding = (int) $outstanding;
 
-    function showCreated() {
+        if (!$has_processing_started && !$has_date_sent && $outstanding === 0) {
+            return 1;
+        }
+
+        if (!$has_processing_started && !$has_date_sent && $outstanding > 0) {
+            return 2;
+        }
+
+        if ($has_processing_started && !$has_date_sent && $outstanding > 0) {
+            return 3;
+        }
+
+        if ($has_processing_started && $has_date_sent && $outstanding === 0) {
+            return 4;
+        }
+
+        return 0;
+    }
+
+    private function getRecentMailshotRowColour($status) {
+        switch ($status) {
+            case 1:
+                return 'rgba(192, 192, 192, 0.35)';
+            case 2:
+                return 'rgba(249, 177, 4, 0.25)';
+            case 3:
+                return 'rgba(240, 128, 80, 0.25)';
+            case 4:
+                return 'rgba(156, 200, 171, 0.30)';
+            default:
+                return 'rgba(198, 12, 48, 0.20)';
+        }
+    }
+
+    private function getRecentMailshotStatusLabel($status) {
+        switch ($status) {
+            case 1:
+                return 'Draft';
+            case 2:
+                return 'Awaiting dispatch';
+            case 3:
+                return 'Dispatch in progress';
+            case 4:
+                return 'Completed';
+            default:
+                return 'Invalid';
+        }
+    }
+
+
+    public function showCreated() {
 // Shows a matrix of the number of subscriptions created from Corporate feed
 // Columns are months, with a row for each mailing list
         ToolBarHelper::title('Mailman report');
@@ -1001,7 +1075,7 @@ class ReportsController extends FormController {
         echo $this->toolsHelper->backButton($back);
     }
 
-    function showDue() {
+    public function showDue() {
 // Shows a matrix of the number of subscriptions due for renewal
 // Columns are months, with a row for each mailing list
         ToolBarHelper::title('Mailman report');
@@ -1360,7 +1434,7 @@ class ReportsController extends FormController {
         $sql .= 'WHERE id=' . $list_id;
         $item = $this->toolsHelper->getItem($sql);
         ToolBarHelper::title('Subscriptions Report for ' . $item->group_code . ' ' . $item->name);
-        echo $this->breadcrumbs . $this->breadcrumbsExtra('Subscriptions Report', 'subscriptionsReport');
+        echo $this->breadcrumbs . $this->breadcrumbsExtra('Subscriptions Report', 'subscriptionsSummary');
         $table_headings = 'Group,User,';
         // Check whether to show email addresses
         if ($this->toolsHelper->isSuperuser()) {
@@ -1433,6 +1507,7 @@ class ReportsController extends FormController {
         $sql .= 'FROM #__ra_mail_lists AS l ';
         $sql .= 'INNER JOIN #__ra_profiles AS p ON p.id=l.owner_id ';
         $sql .= $this->buildCriterion('WHERE','l.group_code');
+        $sql .= ' ORDER BY l.group_code, l.name';
         $rows = $this->toolsHelper->getRows($sql);
 
         $sql_lookup = 'SELECT COUNT(id) FROM #__ra_mail_subscriptions ';
@@ -1440,16 +1515,16 @@ class ReportsController extends FormController {
 
         $target = 'administrator/index.php?option=com_ra_mailman&task=reports.subscriptionsReportDetail&id=';
         $table = new ToolsTable;
-        $table->add_header('Name,Group,Owner,Active subscribers,Inactive subscribers');
+        $table->add_header('Group,Name,Owner,Active subscribers,Inactive subscribers');
         foreach ($rows as $row) {
             if ($row->state == 1) {
                 $name = $row->name;
             } else {
                 $name = '<div style="color:red">' . $row->name . '</div>';
             }
-            $table->add_item($name);
             $table->add_item($row->group_code);
-
+            $table->add_item($name);
+    
             $table->add_item($row->preferred_name);
 
             $count = $this->toolsHelper->getValue($sql_lookup . $row->id . ' AND state=1');

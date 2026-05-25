@@ -40,7 +40,7 @@ class SystemController extends FormController
 {
 
     protected $back;
-    protected $objApp;
+    protected $app;
     protected $toolsHelper;
 
     public function __construct(
@@ -52,10 +52,10 @@ class SystemController extends FormController
         parent::__construct($config, $factory, $app, $input);
 
         $this->toolsHelper = new ToolsHelper;
-        $this->objApp = Factory::getApplication();
+        $this->app = Factory::getApplication();
         $this->back = 'administrator/index.php?option=com_ra_tools&view=dashboard';
 
-        $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
+        $wa = $this->app->getDocument()->getWebAssetManager();
         $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
     }
 
@@ -355,7 +355,7 @@ class SystemController extends FormController
     }
 
     public function purgeUser() {
-        $id = $this->objApp->input->getInt('id', '0');
+        $id = $this->app->input->getInt('id', '0');
         ToolBarHelper::title($this->prefix . 'Purging Blocked user');
         if (!$this->toolsHelper->isSuperuser()) {
             echo 'Invalid access<br>';

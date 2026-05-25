@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    4.5.8
+ * @version    4.7.3
  * @package    com_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2023 Charlie Bigley
@@ -21,18 +21,17 @@
  * 08/08/25 CB new send
  * 12/10/25 CB correct display of user name in showIndividualMailshots
  * 14/11/25 CB callback to recipients
+ * 06/05/26 CB cancelSending function
+ * 20/05/26 CB correct cancelSending
  */
 
 namespace Ramblers\Component\Ra_mailman\Administrator\Controller;
 
 \defined('_JEXEC') or die;
 
-use Joomla\CMS\Component\ComponentHelper;
 use Joomla\CMS\Factory;
 use Joomla\CMS\HTML\HTMLHelper;
-use Joomla\CMS\Layout\LayoutHelper;
 use Joomla\CMS\MVC\Controller\FormController;
-use Joomla\CMS\MVC\Factory\MVCFactoryInterface;
 use Joomla\CMS\Router\Route;
 use Joomla\CMS\Toolbar\ToolbarHelper;
 use Ramblers\Component\Ra_mailman\Site\Helpers\Mailhelper;
@@ -46,11 +45,9 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsTable;
  */
 class MailshotController extends FormController {
 
+    protected $app;
     protected $db;
-    protected $objApp;
-    protected $objHelper;
-    protected $objMailHelper;
-    protected $query;
+    protected $toolsHelper;
     protected $user;
     protected $view_item = 'mailshot';
     protected $view_list = 'mail_lsts';
@@ -58,26 +55,18 @@ class MailshotController extends FormController {
     public function __construct(array $config = array(), \Joomla\CMS\MVC\Factory\MVCFactoryInterface $factory = null) {
         parent::__construct($config, $factory);
         $this->db = Factory::getDbo();
-        $this->objHelper = new ToolsHelper;
-        $this->objApp = Factory::getApplication();
-        $this->objMailHelper = new Mailhelper;
-        $this->user = Factory::getApplication()->getSession()->get('user');
-        $wa = Factory::getApplication()->getDocument()->getWebAssetManager();
+        $this->toolsHelper = new ToolsHelper;
+        $this->app = Factory::getApplication();
+        $this->user = $this->app->getSession()->get('user');
+        $wa = $this->app->getDocument()->getWebAssetManager();
         $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
     }
 
     public function apply($key = null, $urlVar = null) {
-        // does not seem to be invoked
-        die('apply invoked');
         $return = parent::apply($key, $urlVar);
-        // Get the parameters passed as part of the URL
-        $app = Factory::getApplication();
-        $id = $app->input->getInt('id', '1');
-        $list_id = $app->input->getInt('list_id', '0');
-        // Redirect back to edit form
-        $target = 'index.php?option=com_ra_mailman&view=mailshot&layout=edit';
-        $target .= '&id=' . $id . '&list_id=' . $list_id;
-        $this->setRedirect(Route::_($target, false));
+
+        $this->setRedirect(Route::_($this->getEditRedirectTarget(), false));
+
         return $return;
     }
 
@@ -85,28 +74,45 @@ class MailshotController extends FormController {
         $this->setRedirect('/administrator/index.php?option=com_ra_mailman&view=mail_lsts');
     }
 
-    public function initiate() {
-        $this->user = Factory::getApplication()->getSession()->get('user');
-        $user_id = $this->user->id;
-        if ($user_id == 0) {
-            Factory::getApplication()->enqueueMessage('You must log in to access this function', 'error');
-            $this->setRedirect('/administrator/index.php?option=com_ra_mailman&view=mail_lsts');
-            return;
+    public function cancelSending() {
+        $mailshot_id = (int) $this->app->input->getCmd('mailshot_id', '');
+        $scope = $this->app->input->getCmd('scope', '');
+        $sql = 'SELECT l.id, l.emails_outstanding, m.processing_started, m.date_sent, m.title ';
+        $sql .= 'FROM #__ra_mail_shots AS m ';
+        $sql .= 'INNER JOIN #__ra_mail_lists AS l ON l.id = m.mail_list_id ';
+        $sql .= 'WHERE m.id=' . $mailshot_id;
+        $item = $this->toolsHelper->getItem($sql);
+ //       var_dump($item);
+//        die;
+        if ($item) {
+            $sql = 'UPDATE #__ra_mail_lists SET emails_outstanding=0 WHERE id=' . $item->id;
+            $this->toolsHelper->executeCommand($sql);
+
+            $sql = 'UPDATE #__ra_mail_shots SET date_sent=NOW() WHERE id=' . $mailshot_id;
+            $this->toolsHelper->executeCommand($sql);
+
+            $message = 'Mailshot "' . $item->title . '" cancelled. Outstanding count reset from ' . $item->emails_outstanding . ' to 0.';
+            $this->toolsHelper->createLog('RA Mailman', '27', $mailshot_id, $message);
+            $this->app->enqueueMessage('Sending cancelled. The mailshot has been closed and cannot be restarted.', 'success');
+        } else {
+            $this->app->enqueueMessage('No mailshot found for mailshot ID ' . $mailshot_id, 'notice');
         }
-        $objApp = Factory::getApplication();
-        $mailshot_id = (int) $objApp->input->getCmd('mailshot_id', '');
-        Factory::getApplication()->enqueueMessage('Sending has been initiated, please be patient and do not send again', 'notice');
-        $this->setRedirect('/administrator/index.php?option=com_ra_mailman&task=mailshot.send&mailshot_id=' . mailshot_id);
+        $this->setRedirect('/administrator/index.php?option=com_ra_mailman&task=reports.recentMailshots&scope=' . $scope);
     }
 
     public function save($key = null, $urlVar = null) {
+        $task = $this->app->input->getCmd('task', '');
         $return = parent::save($key, $urlVar);
         if ($return) {
-            // Redirect back to mailing lists
-            $target = '/administrator/index.php?option=com_ra_mailman&view=mail_lsts';
+            if ($this->isApplyTask($task)) {
+                $target = $this->getEditRedirectTarget();
+            } else {
+                // Redirect back to mailing lists
+                $target = '/administrator/index.php?option=com_ra_mailman&view=mail_lsts';
+            }
         } else {
             // Get the parameters passed as part of the URL
-            $app = Factory::getApplication();
+            $app = $this->app;
             $id = $app->input->getInt('id', '1');
             $list_id = $app->input->getInt('list_id', '0');
             // Redirect back to edit form
@@ -117,25 +123,37 @@ class MailshotController extends FormController {
         return $return;
     }
 
-    public function saveContinue($key = null, $urlVar = null) {
-        Factory::getApplication()->enqueueMessage('saveContinue', 'info');
-        $return = parent::save($key, $urlVar);
-        // Get the parameters passed as part of the URL
-        $app = Factory::getApplication();
-        $id = $app->input->getInt('id', '1');
-        $list_id = $app->input->getInt('list_id', '0');
-        // Redirect back to edit form
-        $target = 'index.php?option=com_ra_mailman&task=mailshot.edit';
+    private function isApplyTask($task) {
+        return $task === 'apply' || str_ends_with($task, '.apply');
+    }
+
+    private function getEditRedirectTarget() {
+        $data = $this->app->input->get('jform', array(), 'array');
+        $id = (int) ($data['id'] ?? 0);
+        $list_id = (int) ($data['mail_list_id'] ?? 0);
+
+        if ($id === 0) {
+            $id = (int) $this->app->getUserState('com_ra_mailman.edit.mailshot.id');
+        }
+
+        if ($id === 0) {
+            $id = $this->app->input->getInt('id', 0);
+        }
+
+        if ($list_id === 0) {
+            $list_id = $this->app->input->getInt('list_id', 0);
+        }
+
+        $target = 'index.php?option=com_ra_mailman&view=mailshot&layout=edit';
         $target .= '&id=' . $id . '&list_id=' . $list_id;
-        $this->setRedirect(Route::_($target, false));
-        return $return;
+
+        return $target;
     }
 
     public function showIndividualMailshots() {
         // Show mailshots for given User or Profile
 
-        $objApp = Factory::getApplication();
-        $user_id = (int) $objApp->input->getCmd('user_id', 0);
+        $user_id = (int) $this->app->input->getCmd('user_id', 0);
         ToolBarHelper::title('Ramblers MailMan');
         $db = Factory::getDbo();
         $query = $db->getQuery(true);
@@ -159,10 +177,10 @@ class MailshotController extends FormController {
         $query->where($db->qn('r.user_id') . ' = ' . $user_id);
         $query->order('a.date_sent DESC');
 
-        $mailshots = $this->objHelper->getRows($query);
-//        Factory::getApplication()->enqueueMessage('Q=' . $query, 'notice');
+        $mailshots = $this->toolsHelper->getRows($query);
+//        $this->app->enqueueMessage('Q=' . $query, 'notice');
         $details = '<h2>Mailshots sent to User ' . $user_id;
-        $details .= ', ' . $this->objHelper->lookupUser($user_id) . '</h2>';
+        $details .= ', ' . $this->toolsHelper->lookupUser($user_id) . '</h2>';
         echo $details;
         $objTable = new ToolsTable;
         $objTable->add_header("Details,List,Title,Message,File,Author");
@@ -170,7 +188,7 @@ class MailshotController extends FormController {
         $target .= '&callback=individual&user_id=' . $user_id . '&id=';
         foreach ($mailshots as $row) {
             $display_date = HTMLHelper::_('date', $row->created, 'H:i:s d/m/Y');
-            $details = $this->objHelper->buildLink($target . $row->id, $display_date);
+            $details = $this->toolsHelper->buildLink($target . $row->id, $display_date);
             //$objTable->add_item($details . '<br>' . $row->ip_address . '<br>' . $row->email);
             $objTable->add_item($details . '<br>' . $row->email);
             $objTable->add_item($row->list_name);
@@ -187,14 +205,13 @@ class MailshotController extends FormController {
         }
         $objTable->generate_table();
         $back = 'administrator/index.php?option=com_ra_mailman&view=profiles';
-        echo $this->objHelper->backButton($back);
+        echo $this->toolsHelper->backButton($back);
     }
 
     public function showMailshot() {
-        $objApp = Factory::getApplication();
-        $id = $objApp->input->getInt('id', 0);
-        $callback = $objApp->input->getWord('callback', '');
-        $user_id = $objApp->input->getInt('user_id', 0);
+        $id = $this->app->input->getInt('id', 0);
+        $callback = $this->app->input->getWord('callback', '');
+        $user_id = $this->app->input->getInt('user_id', 0);
 
         $db = Factory::getDbo();
         $query = $db->getQuery(true);
@@ -230,12 +247,12 @@ class MailshotController extends FormController {
         $sql = 'SELECT id FROM #__ra_mail_shots WHERE mail_list_id=' . $item->mail_list_id;
         $sql .= ' AND id>' . $item->id;
         $sql .= ' ORDER BY id ASC LIMIT 1';
-        $next_id = $this->objHelper->getValue($sql);
+        $next_id = $this->toolsHelper->getValue($sql);
 
         $sql = 'SELECT id FROM `#__ra_mail_shots` WHERE mail_list_id=' . $item->mail_list_id;
         $sql .= ' AND id<' . $item->id;
         $sql .= ' ORDER BY id DESC LIMIT 1';
-        $prev_id = $this->objHelper->getValue($sql);
+        $prev_id = $this->toolsHelper->getValue($sql);
 
 //        echo "<p>" . $item->body . "</p>";
         echo $item->final_message;
@@ -243,7 +260,7 @@ class MailshotController extends FormController {
             $attach_array = explode(',', $item->attachment);
             echo 'Attachment: ';
             foreach ($attach_array as $file) {
-                echo $this->objHelper->buildLink('../images/com_ra_mailman/' . $file, $file, true) . '<br> ';
+                echo $this->toolsHelper->buildLink('../images/com_ra_mailman/' . $file, $file, true) . '<br> ';
             }
         }
         echo "<p>Created by " . $item->creator . ' at ' . HTMLHelper::_('date', $item->created, 'H:i D d/m/y');
@@ -261,35 +278,34 @@ class MailshotController extends FormController {
         } else {
             $back = 'administrator/index.php?option=com_ra_mailman&view=mailshots&list_id=' . $item->mail_list_id;
         }
-        echo $this->objHelper->backButton($back);
+        echo $this->toolsHelper->backButton($back);
 
         $target = "administrator/index.php?option=com_ra_mailman&task=mailshot.showMailshot&id=";
         if ($prev_id) {
-            $prev = $this->objHelper->buildButton($target . $prev_id, "Prev", False, 'grey');
+            $prev = $this->toolsHelper->buildButton($target . $prev_id, "Prev", False, 'grey');
             echo $prev;
         }
         if ($next_id) {
-            $next = $this->objHelper->buildButton($target . $next_id, "Next", False, 'teal');
+            $next = $this->toolsHelper->buildButton($target . $next_id, "Next", False, 'teal');
             echo $next;
         }
         echo "<p>";
     }
 
     public function showRecipients() {
-//        $this->objHelper->showQuery('SELECT * FROM #__ra_mail_recipients');
+//        $this->toolsHelper->showQuery('SELECT * FROM #__ra_mail_recipients');
         /*
           $sql = "SELECT r.id, r.user_id, r.email AS recipient, u.name, u.email FROM #__ra_mail_recipients AS r INNER JOIN `#__users` AS u ON r.user_id = u.id"; //WHERE r.email = ''";
-          $rows = $this->objHelper->getRows($sql);
+          $rows = $this->toolsHelper->getRows($sql);
           foreach ($rows as $row) {
           $sql = "UPDATE #__ra_mail_recipients SET email='" . $row->email . "' WHERE id=" . $row->id;
           echo "Updating $row->name from $row->recipient $sql<br>";
-          $this->objHelper->executeCommand($sql);
+          $this->toolsHelper->executeCommand($sql);
           }
          */
 
-        $objApp = Factory::getApplication();
-        $id = (int) $objApp->input->getCmd('id', 0);
-        $list_id = (int) $objApp->input->getCmd('list_id', 0);
+        $id = (int) $this->app->input->getCmd('id', 0);
+        $list_id = (int) $this->app->input->getCmd('list_id', 0);
 
         $db = Factory::getDbo();
         $query = $db->getQuery(true);
@@ -321,7 +337,6 @@ class MailshotController extends FormController {
         $query->select("DATE_FORMAT(a.created, '%d/%b/%y') as sent_date");
         $query->select("DATE_FORMAT(a.created, '%k:%i:%s') as sent_time");
         $query->from('`#__ra_mail_recipients` AS a');
-//        $query->innerJoin('#__ra_mail_lists AS l ON l.id = a.mail_list_id');
         $query->leftJoin('#__ra_profiles AS p ON p.id = a.user_id');
         $query->leftJoin('#__users AS u ON u.id = a.user_id');
         $query->where('a.mailshot_id = ' . $id);
@@ -329,10 +344,10 @@ class MailshotController extends FormController {
 
         //      Show link that allows page to be printed
 //        $target = "index.php?option=com_ra_mailman&task=mailshot.showRecipients&id=" . $id;
-//        echo $this->objHelper->showPrint($target) . '<br>' . PHP_EOL;
+//        echo $this->toolsHelper->showPrint($target) . '<br>' . PHP_EOL;
 //        echo (string) $query;
         $sql = (string) $query;
-        $rows = $this->objHelper->getRows($sql);
+        $rows = $this->toolsHelper->getRows($sql);
         $objTable = new ToolsTable;
         $objTable->add_header("Recipient,Date,Time,email");
 //        $rows = $db->loadObjectList();
@@ -352,23 +367,30 @@ class MailshotController extends FormController {
         }
         $objTable->generate_table();
         echo $count . ' Recipients<br>';
-        echo $this->objHelper->backButton("administrator/index.php?option=com_ra_mailman&view=mailshots&list_id=" . $list_id);
+        echo $this->toolsHelper->backButton("administrator/index.php?option=com_ra_mailman&view=mailshots&list_id=" . $list_id);
         echo "<p>";
     }
 
-    public function send() {
-        $objApp = Factory::getApplication();
-        $mailshot_id = (int) $objApp->input->getCmd('mailshot_id', '');
-        $total = $objApp->input->getInt('total', '0');
+    public function send($force = 'N') {
+        $mailshot_id = (int) $this->app->input->getCmd('mailshot_id', '');
+        $total = $this->app->input->getInt('total', '0');
 
         $user_id = $this->user->id;
         if ($user_id == 0) {
-            Factory::getApplication()->enqueueMessage('You must log in to access this function', 'error');
+            $this->app->enqueueMessage('You must log in to access this function', 'error');
         } else {
-            // Ignore any limit on the numbers to be send on-line
-            
             $mailHelper = new Mailhelper;
-            $mailHelper->sendEmails($mailshot_id);
+            if ($force == 'Y') {
+                // Ignore any limit on the numbers to be send on-line
+                $mailHelper->sendEmails($mailshot_id);
+                if (!empty($mailHelper->messages)) {
+                    foreach ($mailHelper->messages as $message) {
+                        $this->app->enqueueMessage($message, 'info');
+                    }
+                }   
+            } else {
+                $mailHelper->send($mailshot_id, $total);
+            }
         }
 
         $this->setRedirect('index.php?option=com_ra_mailman&view=mail_lsts');

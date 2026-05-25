@@ -658,17 +658,22 @@ class Mail_lstController extends FormController {
         if ($mailshot_id == 0) {
             Factory::getApplication()->enqueueMessage('List not found', 'error');
         } else {
-            $sql = 'SELECT l.id, l.group_code, l.name, l.emails_outstanding,  m.title ';
+            $sql = 'SELECT l.id, l.group_code, l.name, l.emails_outstanding, m.title ';
             $sql .= 'FROM #__ra_mail_lists AS l ';
-            $sql .= 'INNER JOIN #__ra_mail_shots AS m ';
+            $sql .= 'INNER JOIN #__ra_mail_shots AS m ON m.mail_list_id = l.id ';
             $sql .= 'WHERE m.id=' . $mailshot_id;
 
             $item = $this->toolsHelper->getItem($sql);
+            if (is_null($item)) {
+                Factory::getApplication()->enqueueMessage('Mailshot not found', 'error');
+                $back = 'administrator/index.php?option=com_ra_mailman&task=reports.recentMailshots';
+                echo $this->toolsHelper->backButton($back);
+                return;
+            }
             $emails_outstanding = $item->emails_outstanding;
             echo '<p><b>List</b> ' . $item->group_code . '/' . $item->name . '</p>';
             echo '<p><b>Mailshot</b> ' . $item->title . '</p>';
 
-            //          $last_mailshot = $this->mailHelper->lastMailshot($id);
             $subscribers = $this->mailHelper->getSubscribers($mailshot_id, 'Y');
             $actually_outstanding = count($subscribers);
             if (count($subscribers) == 0) {
@@ -681,9 +686,9 @@ class Mail_lstController extends FormController {
                 $objTable->add_header('Email,Name,User id');
                 foreach ($subscribers as $row) {
                     $count++;
-
+// ;
                     $objTable->add_item($row->email);
-                    $objTable->add_item($row->User);
+                    $objTable->add_item($this->toolsHelper->lookupUser($row->user_id));
                     $objTable->add_item($row->user_id);
                     $objTable->generate_line();
                 }

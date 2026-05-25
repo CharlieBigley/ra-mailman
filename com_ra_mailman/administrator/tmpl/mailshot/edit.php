@@ -13,10 +13,8 @@
 defined('_JEXEC') or die;
 
 use \Joomla\CMS\HTML\HTMLHelper;
-use \Joomla\CMS\Factory;
 use \Joomla\CMS\Uri\Uri;
 use \Joomla\CMS\Router\Route;
-use \Joomla\CMS\Language\Text;
 use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 $toolsHelper = new ToolsHelper;
@@ -39,7 +37,6 @@ $self .= '&id=' . (int) $this->item->id . '&list_id=' . (int) $this->list_id;
     <div class="row-fluid">
         <div class="span10 form-horizontal">
             <fieldset class="adminform">
-                <legend><?php //echo 'Mailshot';                        ?></legend>
                 <?php
                 echo $this->form->renderField('title');
                 echo $this->form->renderField('body');
@@ -86,8 +83,8 @@ $self .= '&id=' . (int) $this->item->id . '&list_id=' . (int) $this->list_id;
     echo $this->form->renderField('record_type');
     echo HTMLHelper::_('uitab.endTab');
     ?>
-    <input type="hidden" name="jform[id]" value="<?php //echo $this->item->id;                      ?>" />
-    <input type="hidden" name="jform[state]" value="<?php //echo $this->item->state;                        ?>" />
+    <input type="hidden" name="jform[id]" value="<?php echo $this->item->id; ?>" />
+    <input type="hidden" name="jform[state]" value="<?php echo $this->item->state; ?>" />
 
     <?php echo HTMLHelper::_('uitab.endTabSet'); ?>
 

@@ -229,6 +229,7 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
         // Initialise variables.
         $app = Factory::getApplication();
         $list_id = $app->input->getInt('list_id', '0');
+//        die('list id = ' . $list_id);
         // Get the form.
         $form = $this->loadForm('com_ra_mailman.mailshot', 'mailshotform', array(
             'control' => 'jform',
@@ -239,6 +240,8 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
         if (empty($form)) {
             return false;
         }
+        // Set value of list_id from input for use in save
+        $form->setFieldAttribute('mail_list_id', 'default', $list_id);
         // Set value of event_id from input
         $form->setFieldAttribute('event_id', 'default', $event_id);
 
@@ -345,8 +348,8 @@ class MailshotformModel extends FormModel implements CurrentUserInterface {
         $id = (!empty($data['id'])) ? $data['id'] : (int) $this->getState('mailshot.id');
         $state = (!empty($data['state'])) ? 1 : 0;
         $list_id = $data['mail_list_id'];
-        //       var_dump($data);
-        //       die($list_id);
+//               var_dump($data);
+//               die($list_id);
         $mailHelper = new Mailhelper;
         if ($mailHelper->isAuthor($list_id)) {
             $authorised = true;

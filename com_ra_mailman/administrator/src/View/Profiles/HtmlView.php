@@ -165,7 +165,7 @@ class HtmlView extends BaseHtmlView implements CurrentUserInterface {
             }
         }
 
-        ToolbarHelper::cancel('profiles.cancel', 'Return to Dashboard');
+        ToolbarHelper::cancel('profile.cancel', 'Return to Dashboard');
         $help_url = 'https://docs.stokeandnewcastleramblers.org.uk/mail-manager.html?view=article&id=441:mm-02-5-users&catid=34';
         ToolbarHelper::help('', false, $help_url);
     }

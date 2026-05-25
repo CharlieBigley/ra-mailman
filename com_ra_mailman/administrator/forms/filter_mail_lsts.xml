@@ -6,6 +6,28 @@
                label="COM_USERS_FILTER_SEARCH_DESC"
                class="js-stools-search-string" />
 
+     <field name="record_type"
+         type="list"
+         label="Open/Closed"
+         description="Filter by list type"
+         class="js-select-submit-on-change"
+     >
+         <option value="">- Select type -</option>
+         <option value="O">Open</option>
+         <option value="C">Closed</option>
+     </field>
+
+     <field name="home_group_only"
+         type="list"
+         label="Home group only"
+         description="Filter by home group restriction"
+         class="js-select-submit-on-change"
+     >
+         <option value="">- Select home group only -</option>
+         <option value="1">Y</option>
+         <option value="0">N</option>
+     </field>
+
         <!-- field name="state"
                type="status"
                label="COM_RA_MAILMAN_FILTER_STATE"

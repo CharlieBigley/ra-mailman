@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    1.0.8
+ * @version    1.1.0
  * @package    plg_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2026 Charlie Bigley
@@ -9,6 +9,7 @@
  *
  * 08/08/25 CB created
  * 08/04/26 CB added loadusers command
+ * 19/05/26 CB remove loadusers (moved to plg_ra_members)
  */
 
 namespace Ramblers\Plugin\System\Ra_mailman\Extension;
@@ -48,8 +49,6 @@ class Ra_mailman extends CMSPlugin {
         $commandObject = new SendemailsCommand;
         $this->app->addCommand($commandObject);
 
-        $commandObject = new LoadusersCommand;
-        $this->app->addCommand($commandObject);
     }
 
 }

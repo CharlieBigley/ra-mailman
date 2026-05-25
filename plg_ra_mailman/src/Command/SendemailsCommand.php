@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version    1.0.7
+ * @version    1.1.0
  * @package    plg_ra_mailman
  * @author     Charlie Bigley <webmaster@bigley.me.uk>
  * @copyright  2025 Charlie Bigley
@@ -9,12 +9,14 @@
  * @copyright   Copyright (C) 2005 - 2021 Clifford E Ford. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  *
- * This gets copied to plugins/console/ra_mailman/src/Command/SensEmailsCommand.php
+ * This gets copied to plugins/console/ra_mailman/src/Command/SendemailsCommand.php
  *
  * 08/08/25 CB created from WalkslistCommand
  * 05/12/25 CB tidy message, log finish time
  * 11/10/25/CB correct message logging
  * 16/10/25 CB use ToolsHelper to create logfile record
+ * 06/05/26 CB improve diagnostics
+ * 19/05/26 CB allow sending of multiple mailshots
  */
 
 namespace Ramblers\Plugin\System\Ra_mailman\Command;
@@ -133,50 +135,40 @@ class SendemailsCommand extends AbstractCommand {
         $this->ref = 0;
         $id = 0;
         foreach ($rows as $row) {
-            if ($id == 0) {
-                $id = $row->id;
-                $name = $row->group_code . '/' . $row->name;
-                $emails_outstanding = $row->emails_outstanding;
+            $id = $row->id;
+            $name = $row->group_code . '/' . $row->name;
+            $emails_outstanding = $row->emails_outstanding;
+
+            if ($emails_outstanding > $max_emails) {
+                $message = 'Sending ' . $max_emails . ' out of ' . $emails_outstanding;
+            } else {
+                $message = 'Sending ' . $emails_outstanding;
+            }
+            $message .= ' emails for List ' . $name;
+            $this->ioStyle->comment($message);
+            $this->logit($message, 1);
+
+            $message . '<br>';
+            $mailHelper->batch_mode = true;
+            $mailHelper->user_id = 1;           // A value is required when creating subscriptions
+    //      $this->toolsHelper->user_id = 1;          // A value is required when creating emails
+            $last_mailshot = $mailHelper->lastMailshot($id);
+            $this->ref = $last_mailshot->id;
+            $this->ioStyle->comment('Sending emails for Mailshot where id=' . $this->ref);
+            $mailHelper->sendEmails($last_mailshot->id);
+            $this->ioStyle->comment('Helper successful');
+            foreach ($mailHelper->messages as $message) {
+                $this->ioStyle->comment($message);
+                $body .= $message . '<br>';
             }
         }
-        if ($id == 0) {
+         if ($id == 0) {
             $this->ioStyle->comment('No emails outstanding');
             return 1;
         }
-
-        if ($emails_outstanding > $max_emails) {
-            $message = 'Sending ' . $max_emails . ' out of ' . $emails_outstanding;
-        } else {
-            $message = 'Sending ' . $emails_outstanding;
-        }
-        $message .= ' emails for ' . $name;
-        $this->ioStyle->comment($message);
-        $this->logit($message, 1);
-
-        $message . '<br>';
-        $mailHelper->user_id = 1;           // A value is required when creating subscriptions
-//      $this->toolsHelper->user_id = 1;          // A value is required when creating emails
-        $last_mailshot = $mailHelper->lastMailshot($id);
-        $this->ref = $last_mailshot->id;
-        $this->ioStyle->comment('Sending emails for ' . $this->ref);
-        $mailHelper->sendEmails($last_mailshot->id);
-        $this->ioStyle->comment('After helper ');
-        foreach ($mailHelper->messages as $message) {
-            $this->ioStyle->comment($message);
-            $body .= $message . '<br>';
-        }
-
         $date = Factory::getDate();
         $message = 'Processing finished ' . HTMLHelper::_('date', $date, 'H:i d/m/y') . ' GMT';
         $this->logit($message, 9);
-
-//        $body .= $message . '<br>';
-//        $$this->logit('RA Mailman', 2, $id, $message);
-//        $this->ioStyle->comment($body);
-//        $to = 'hyperbigley@gmail.com';
-//        $reply_to = 'hyperbigley@gmail.com';
-//        $title = 'Emails sent';
-//        $toolsHelper->sendEmail($to, $reply_to, $title, $body);
         $this->ioStyle->comment('Finished');
         return 1;
     }
@@ -186,16 +178,6 @@ class SendemailsCommand extends AbstractCommand {
      */
     public function logit($message, $record_type = '3') {
         $this->toolsHelper->createLog('RA Mailman', $record_type, $this->ref, $message);
-//    $query = $this->db->getQuery(true);
-//
-//    $query->insert('#__ra_logfile')
-//            ->set("sub_system = " . $this->db->quote('RA Mailman'))
-//            ->set("record_type = " . $this->db->quote($record_type))
-//            ->set("ref = " . $this->db->quote($this->ref))
-//            ->set("message = " . $this->db->quote($text))
-//    ;
-////        $this->ioStyle->comment($query);
-//    $result = $this->db->setQuery($query)->execute();
     }
 
 }

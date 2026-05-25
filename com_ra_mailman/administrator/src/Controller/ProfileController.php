@@ -32,6 +32,10 @@ class ProfileController extends FormController {
 
     protected $view_list = 'profiles';
 
+    public function cancel($key = null, $urlVar = null) {
+        $this->setRedirect(Route::_('/administrator/index.php?option=com_ra_tools&view=dashboard', false));
+    }
+
     public function create() {
         // Invoked when a User record exists but not a Profile record
         // Creates a record, allows it to be edited

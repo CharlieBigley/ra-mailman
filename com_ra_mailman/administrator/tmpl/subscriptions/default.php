@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    4.4.11
+ * @version    4.7.2
  * @package    com_ra_mailman
  * @author     Charlie Bigley <charlie@bigley.me.uk>
  * @copyright  2025 Charlie Bigley
@@ -25,8 +25,6 @@ HTMLHelper::_('behavior.multiselect');
 // Import CSS
 $wa = $this->document->getWebAssetManager();
 $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
-//$wa->useStyle('com_ra_tools.admin')
-//        ->useScript('com_ra_tools.admin');
 
 $user = Factory::getApplication()->getIdentity();
 $userId = $user->get('id');
