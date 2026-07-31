@@ -31,7 +31,7 @@
             <menu link="option=com_ra_tools&amp;view=dashboard">Dashboard</menu>
             <menu link="option=com_ra_mailman&amp;view=mail_lsts" view="mail_lsts" img="components/com_ra_tools/assets/images/view-16x16-walks.png" alt="Ramblers/mail lists">Mailing lists</menu>
             <menu link="option=com_ra_mailman&amp;view=mailshots" view="mailshots" img="components/com_ra_tools/assets/images/view-16x16-walks.png" alt="Ramblers/Mailshots">Mailshots</menu>
-            <menu link="option=com_ra_mailman&amp;view=sreports" view="subscriptions" img="components/com_ra_tools/assets/images/view-16x16-walks.png" alt="Ramblers/Subscriptions">Reports</menu>
+            <menu link="option=com_ra_mailman&amp;view=reports" view="subscriptions" img="components/com_ra_tools/assets/images/view-16x16-walks.png" alt="Ramblers/Subscriptions">Reports</menu>
         </submenu>
         <files folder="administrator">
             <folder>forms</folder>

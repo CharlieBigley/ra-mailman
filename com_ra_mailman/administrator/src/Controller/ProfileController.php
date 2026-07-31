@@ -32,6 +32,7 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
  */
 class ProfileController extends FormController {
 
+    protected $view_item = 'profile';
     protected $view_list = 'profiles';
     private $toolsHelper;
 
@@ -44,6 +45,10 @@ class ProfileController extends FormController {
 
     public function cancel($key = null, $urlVar = null) {
         $this->setRedirect(Route::_('/administrator/index.php?option=com_ra_tools&view=dashboard', false));
+    }
+
+    public function getModel($name = 'Profile', $prefix = 'Administrator', $config = ['ignore_request' => true]) {
+        return parent::getModel($name, $prefix, $config);
     }
 
     public function create() {

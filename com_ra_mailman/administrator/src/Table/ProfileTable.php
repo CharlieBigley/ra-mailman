@@ -31,6 +31,7 @@ use \Joomla\Database\DatabaseDriver;
 //use \Joomla\CMS\Filesystem\File;
 use \Joomla\Registry\Registry;
 use \Joomla\CMS\Helper\ContentHelper;
+use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 
 /**
  * Profile table
@@ -299,6 +300,27 @@ class ProfileTable extends Table implements VersionableTableInterface, TaggableT
         // Update membership of UserGroups as required
         $toolsHelper = new ToolsHelper;
         Factory::getApplication()->enqueueMessage("Deleting linked records for " . $id, 'info');
+        // Delete Audit records for this user
+        $sql = 'DELETE FROM  #__ra_mail_subscriptions_audit ';
+        $sql .= 'WHERE object_id=' . $id;
+//        echo $sql . '<br>';
+        $toolsHelper->executeCommand($sql);
+        // Delete mail subscriptons for this user
+        $sql = 'SELECT id ';
+        $sql .= 'FROM #__ra_mail_subscriptions  ';
+        $sql .= 'LEFT JOIN #__ra_profiles as p ON p.id = ms.user_id ';
+        $sql .= 'WHERE user_id = ' . $id;
+        $rows = $toolsHelper->getRows($sql);
+        foreach ($rows as $row) {
+            $sql = 'DELETE FROM  #__ra_mail_subscriptions_audit ';
+            $sql .= 'WHERE object_id=' . $row->id;
+//                   echo $sql . '<br>';
+            $toolsHelper->executeCommand($sql);
+            $sql = 'DELETE FROM #__ra_mail_subscriptions WHERE id=' . $row->id;
+//                   echo $sql . '<br>';
+            $toolsHelper->executeCommand($sql);
+        }
+        // Delete Roles for this user        
     }
 
 }

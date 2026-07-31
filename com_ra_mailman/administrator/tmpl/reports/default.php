@@ -1,6 +1,6 @@
 <?php
 /**
- * @version     4.5.6
+ * @version     4.7.10
  * @package     com_ra_mailman
  * @copyright   Copyright (C) 2020. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
@@ -14,6 +14,7 @@
  * 10/08/25 CB recentMailshots
  * 29/09/25 CB bookableEvents
  * 13/10/25 CB subscriptionsReport
+ * 16/07/26 CB new formatting
  */
 defined('_JEXEC') or die;
 
@@ -30,6 +31,7 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 // Import CSS
 $wa = $this->document->getWebAssetManager();
 $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
+$wa->registerAndUseStyle('dashboard', 'com_ra_tools/dashboard.css');
 
 $toolsHelper = new ToolsHelper;
 $back = 'administrator/index.php?option=com_ra_tools&view=dashboard';
@@ -61,11 +63,9 @@ if (ToolsHelper::isInstalled('com_ra_events')) {
     <div id="j-main-container" class="span10">
         <div class="clearfix"> </div>
         <?php
-        echo '<ul>';
-        foreach ($reports as $caption => $task) {
-            echo '<li>' . $toolsHelper->buildLink($task, $caption) . '</li>';
-        }
-        echo '</ul>';
+        echo '<div class="dashboard-grid">';
+        echo $toolsHelper->buildDashboardReportBlock('System reports', $reports);
+        echo '</div>';
 
         echo $toolsHelper->backButton($back);
         ?>

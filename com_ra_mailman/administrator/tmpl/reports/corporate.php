@@ -1,12 +1,13 @@
 <?php
 /**
- * @version     4.7.5
+ * @version     4.7.10
  * @package     com_ra_mailman
  * @copyright   Copyright (C) 2020. All rights reserved.
  * @license     GNU General Public License version 2 or later; see LICENSE.txt
  * @author      Charlie Bigley <webmaster@bigley.me.uk> - https://www.developer-url.com
  * 15/04/26 CB created
  * 01/06/26 CB remove members by Group (in membership reports)
+ * 16/07/26 CB new formatting
  */
 defined('_JEXEC') or die;
 
@@ -23,6 +24,7 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
 // Import CSS
 $wa = $this->document->getWebAssetManager();
 $wa->registerAndUseStyle('ramblers', 'com_ra_tools/ramblers.css');
+$wa->registerAndUseStyle('dashboard', 'com_ra_tools/dashboard.css');
 
 $back = 'administrator/index.php?option=com_ra_tools&view=dashboard';
 $breadcrumbs = $this->toolsHelper->buildLink('administrator/index.php', 'Dashboard');
@@ -42,7 +44,6 @@ if (!empty($code) && $code !== 'N') {
 } else {
     $subheading = 'All records';
 }   
-
 /*
 $admin_reports = [
     // only show these reports to superusers
@@ -62,34 +63,36 @@ $reports = [
 //    'Duplicate Recipients' => 'administrator/index.php?option=com_ra_mailman&task=reports.duplicateRecipients',
 ];
 //$reports['Future bookable Events'] = 'administrator/index.php?option=com_ra_mailman&task=reports.bookableEvents';
+
+$allReports = array();
+
+if ($this->toolsHelper->isSuperuser()) {
+    $allReports = $reports;
+}
+
+$areaReports = array();
+
+foreach ($reports as $caption => $task) {
+    $areaReports[$caption] = $task . '&scope=A';
+}
+
+$groupReports = array();
+
+foreach ($reports as $caption => $task) {
+    $groupReports[$caption] = $task . '&scope=G';
+}
 ?>
 <form action="<?php echo JRoute::_('index.php?option=com_ra_tools&view=reports'); ?>" method="post" name="reportsForm" id="reportsForm">
     <div id="j-main-container" class="span10">
         <div class="clearfix"> </div>
         <?php
-        if ($this->toolsHelper->isSuperuser()){
-            echo '<h4>Scope All records</h4>';   
-            echo '<ul>';
-         
-             foreach ($reports as $caption => $task) {
-                echo '<li>' . $this->toolsHelper->buildLink($task , $caption) . '</li>';
-            }           
-                echo '</ul>';
-            }
-            echo '<h4>Scope '  . $subheading . '</h4>';
-            echo '<h4>Area reports</h4>';
-            echo '<ul>';
-            foreach ($reports as $caption => $task) {
-                echo '<li>' . $this->toolsHelper->buildLink($task . '&scope=A', $caption) . '</li>';
-            }
-            echo '</ul>';
-            echo '<h4>Group reports</h4>';
-            echo '<ul>';
-            foreach ($reports as $caption => $task) {
-                echo '<li>' . $this->toolsHelper->buildLink($task . '&scope=G', $caption) . '</li>';
-            }
-            echo '</ul>';
-            echo $this->toolsHelper->backButton($back);
+        echo '<h4>Scope '  . $subheading . '</h4>';
+        echo '<div class="dashboard-grid">';
+        echo $this->toolsHelper->buildDashboardReportBlock('Scope All records', $allReports);
+        echo $this->toolsHelper->buildDashboardReportBlock('Area reports', $areaReports);
+        echo $this->toolsHelper->buildDashboardReportBlock('Group reports', $groupReports);
+        echo '</div>';
+        echo $this->toolsHelper->backButton($back);
         ?>
         <input type="hidden" name="task" value="" />
         <?php echo HTMLHelper::_('form.token'); ?>

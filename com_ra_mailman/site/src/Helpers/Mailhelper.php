@@ -3,7 +3,7 @@
 /**
  * Contains functions used in the back end and the front end
  *
- * @version    4.7.8
+ * @version    4.7.10
  * @package    com_ra_mailman
  * @author     charles
 
@@ -20,6 +20,8 @@
  * 15/06/26 CB lookupMember
  * 23/06/26 CB Tweak showSubscriptionDetails
  * 28/06/26 CB optionally over-ride send_to, draft emails
+ * 06/07/26 CB invoke view Users from members, not tools
+ * 16/07/26 CB allways show members list, even if no create access
  */
 
 namespace Ramblers\Component\Ra_mailman\Site\Helpers;
@@ -127,15 +129,6 @@ class Mailhelper {
         $super = $this->toolsHelper->isSuperUser();
         // find current scope
         $code = $this->getDefaultGroup();
-        echo 'Hi ' . $this->user->name . ', your default Group is ';
-        if (empty($code)) {
-            echo 'not set';
-        } else {
-            echo $code;
-        }
-        if ($super) {
-            echo ', you are a SuperUser';
-        }
         if (!empty($code) && $code !== 'N') {
             $sql = 'SELECT id, name ';
             $sql .= 'FROM #__ra_organisations ';
@@ -146,71 +139,91 @@ class Mailhelper {
             $subheading = 'All records';
         }
 
+        $text = '';
+        $text .= 'Hi ' . $this->user->name . ', your default Group is ';
+
+        if (empty($code)) {
+            $text .= 'not set';
+        } else {
+            $text .= $code;
+        }
+
+        if ($super) {
+            $text .= ', you are a SuperUser';
+        }
+
+        $text .= '<h4>Scope ' . $subheading . '</h4>';
+        $text .= '<div class="dashboard-grid">';
+//      System block    ======================================================================= 
         if ($canDo->get('core.create')) {
-            $text = '<h3>System Tools</h3>';
-            $text .= '<ul>';
-//            $this->user = $this->getCurrentUser();
-//            if ($this->user->id == 1) {
-            $text .= '<li><a href="index.php?option=com_ra_tools&view=clusters" target="_self">Clusters</a></li>';
-            //}
-            $text .= '<li><a href="index.php?option=com_ra_members&view=organisations" target="_self">Areas and Groups</a></li>';
+            $systemTools = array(
+                'Clusters' => 'administrator/index.php?option=com_ra_tools&view=clusters',
+                'Areas and Groups' => 'administrator/index.php?option=com_ra_members&view=organisations',
+                'System Reports' => 'administrator/index.php?option=com_ra_tools&amp;view=reports',
+            );
+
             if ($super) {
-                $text .= '<li><a href="index.php?option=com_ra_tools&view=apisites" target="_self">API sites</a></li>';
+                $systemTools['API sites'] = 'administrator/index.php?option=com_ra_tools&view=apisites';
             }
             if (ComponentHelper::isEnabled('com_ra_delivery', true)) {
-                $text .= '<li><a href="index.php?option=com_ra_delivery" target="_self">List Email exceptions</a></li>';
+                $systemTools['List Email exceptions'] = 'administrator/index.php?option=com_ra_delivery';
             }
-//            $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=profiles" target="_self">MailMan Users</a></li>';
-            $text .= '<li><a href="index.php?option=com_ra_tools&amp;view=reports" target="_self">System Reports</a></li>';
             $versions = $this->toolsHelper->getVersions('com_ra_mailman');
-            $text .= '<li><a href="index.php?option=com_config&view=component&component=com_ra_mailman" target="_self">';
-            $text .= "Configure system defaults (version " . $versions->component . ")</a></li>" . PHP_EOL;
-// Only loads NS03
-//           $text .= '<li><a href="index.php?option=com_ra_mailman&task=profiles.load" target="_self">Test data load</a></li>';
-            $text .= '</ul>';
+            $target = 'administrator/index.php?option=com_config&view=component&component=com_ra_mailman';
+            $systemTools['Configure system defaults (version ' . $versions->component . ')'] = $target;
+            $text .= $this->toolsHelper->buildDashboardReportBlock('System Tools', $systemTools);
         }
-        $text .= '<h4>Scope ' . $subheading . '</h4>';
+//      Members block    =======================================================================    
         $canDo = ContentHelper::getActions('com_ra_members');
         if ($canDo->get('core.create')) {
-            $text .= '<h3>Members</h3>';
-            $text .= '<ul>';
-
-            $text .= '<li><a href="index.php?option=com_ra_members&view=members" target="_self">Members</a></li>';
-            $text .= '<li><a href="index.php?option=com_ra_members&amp;view=roles" target="_self">Roles</a></li>';
-            $text .= '<li><a href="index.php?option=com_ra_tools&amp;view=users" target="_self">Users</a></li>';
-            $text .= '<li><a href="index.php?option=com_ra_members&amp;view=reports" target="_self">Membership Reports</a></li>';
+            $memberLinks = array(
+                'Members' => 'administrator/index.php?option=com_ra_members&view=members',            
+                'Roles' => 'administrator/index.php?option=com_ra_members&amp;view=roles',
+                'Users' => 'administrator/index.php?option=com_ra_members&amp;view=users',
+                'Membership Reports' => 'administrator/index.php?option=com_ra_members&amp;view=reports',
+            );
             $versions = $this->toolsHelper->getVersions('com_ra_members');
-            $text .= '<li><a href="index.php?option=com_config&view=component&component=com_ra_members" target="_self">';
-            $text .= "Configure system defaults (version " . $versions->component . ")</a></li>" . PHP_EOL;
-//            $text .= '<li><a href="index.php?option=com_ra_mailman&task=profiles.load" target="_self">Test data load</a></li>';
-            $text .= '</ul>';
+            $target = 'administrator/index.php?option=com_config&view=component&component=com_ra_members';
+            $memberLinks['Configure system defaults (version ' . $versions->component . ')'] = $target;
+            $text .= $this->toolsHelper->buildDashboardReportBlock('Members', $memberLinks);
+        } elseif ($canDo->get('core.manage')) {
+             $memberLinks = array(
+                'Members' => 'administrator/index.php?option=com_ra_members&view=members',            
+                'Membership Reports' => 'administrator/index.php?option=com_ra_members&amp;view=reports',
+            );
+            $text .= $this->toolsHelper->buildDashboardReportBlock('Members', $memberLinks);       
         }
+//      Mailman block   =======================================================================    
+        $mailManagerLinks = array(
+            'Mailing lists' => 'administrator/index.php?option=com_ra_mailman&view=mail_lsts',
+            'Mailshots' => 'administrator/index.php?option=com_ra_mailman&amp;view=mailshots',
+        );
 
-        $text .= '<h3>Mail Manager</h3>';
-
-        $text .= '<ul>';
-        $text .= '<li><a href="index.php?option=com_ra_mailman&view=mail_lsts" target="_self">Mailing lists</a></li>';
-        $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=mailshots" target="_self">Mailshots</a></li>';
         $canDo = ContentHelper::getActions('com_ra_mailman');
         if ($canDo->get('core.create')) {
-            $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=recipients" target="_self">Recipients</a></li>';
-            $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=reports" target="_self">Mailman Reports</a></li>';
-            $text .= '<li><a href="index.php?option=com_ra_mailman&amp;view=subscriptions" target="_self">Subscriptions</a></li>';
+            $mailManagerLinks['Recipients'] = 'administrator/index.php?option=com_ra_mailman&amp;view=recipients';
+            $mailManagerLinks['Mailman Reports'] = 'administrator/index.php?option=com_ra_mailman&amp;view=reports';
+            $mailManagerLinks['Subscriptions'] = 'administrator/index.php?option=com_ra_mailman&amp;view=subscriptions';
             $area_code = substr($code, 0, 2);
             $area = $this->toolsHelper->getItem('SELECT id,name FROM #__ra_organisations WHERE code="' . $area_code . '"');
             if (!empty($area->id)) {
+                $target = 'administrator/index.php?option=com_ra_members&view=organisation&layout=edit&callback=dashboard&id=' . $area->id;
                 $label = $area_code . ' ' . $area->name;
-                //            $text .= '<li><a href="index.php?option=com_ra_mailman&view=reports&area=' . $area_code . '" target="_self">Area reports</a></li>';
-                $text .= '<li>Configure email settings for <a href="index.php?option=com_ra_members&view=organisation&layout=edit&callback=dashboard&id=' . $area_id . ' " target="_self">' . $label . '</a></li>';
+                $mailManagerLinks[] = 'Configure email settings for ' . $this->toolsHelper->buildLink($target, $label);
             }
+            $target = 'administrator/index.php?option=com_ra_members&view=organisation&layout=edit&callback=dashboard&id=' . (!empty($item->id) ? $item->id : '');
             $label = $code . ' ' . $this->toolsHelper->lookupGroup($code);
-            $text .= '<li>Configure email settings for <a href="index.php?option=com_ra_members&view=organisation&layout=edit&callback=dashboard&id=' . (!empty($item->id) ? $item->id : '') . ' " target="_self">' . $label . '</a></li>';
+            $text .= $this->toolsHelper->buildDashboardReportBlock('Mail Manager', array_merge(
+                $mailManagerLinks,
+                array(
+                    'Configure email settings for ' . $this->toolsHelper->buildLink($target, $label),
+                )
+            ));
+        } else {
+            $text .= $this->toolsHelper->buildDashboardReportBlock('Mail Manager', $mailManagerLinks);
         }
-        if ($this->toolsHelper->isSuperuser()) {
 
-//            $text .= '<li>(DB version is ' . $versions->db_version . ')</li>';
-        }
-        $text .= '</ul>' . PHP_EOL;
+        $text .= '</div>' . PHP_EOL;
         return $text;
     }
 

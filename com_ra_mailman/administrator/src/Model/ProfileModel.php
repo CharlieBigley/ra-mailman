@@ -25,7 +25,7 @@ use \Joomla\CMS\Table\Table;
 use \Joomla\CMS\Factory;
 use \Joomla\CMS\Language\Text;
 use \Joomla\CMS\Plugin\PluginHelper;
-use \Joomla\CMS\MVC\Model\AdminModel;
+use \Joomla\CMS\MVC\Model\FormModel;
 use \Joomla\CMS\Helper\TagsHelper;
 use \Joomla\CMS\Filter\OutputFilter;
 // use \Joomla\CMS\User\User
@@ -37,7 +37,7 @@ use Ramblers\Component\Ra_tools\Site\Helpers\ToolsHelper;
  *
  * @since  4.0.0
  */
-class ProfileModel extends AdminModel {
+class ProfileModel extends FormModel {
 
     /**
      * @var    string  The prefix to use with controller messages.
@@ -141,43 +141,8 @@ class ProfileModel extends AdminModel {
      * @since   4.0.0
      */
     public function getItem($pk = null) {
-        /*
-          $db = $this->getDbo();
-          $query = $db->getQuery(true)
-          ->select('a.*')
-          ->select('u.name AS real_name,u.email, u.requireReset,u.block')
-          ->from($db->quoteName('#__ra_profiles', 'a'))
-          ->leftjoin($db->quoteName('#__users', 'u') . ' ON ' . $db->quoteName('u.id') . ' = ' . $db->quoteName('a.id'))
-          ->where($db->quoteName('a.id') . ' = ' . (int) $pk);
-          echo $db->replacePrefix($query) . '<br>';
-          $db->setQuery($query);
-
-          $item = $db->loadObject;
-          if ($item = parent::getItem($pk)) {
-          if (isset($item->params)) {
-          $item->params = json_encode($item->params);
-          }
-          }
-          var_dump($item);
-          die;
-          return $item;
-         */
         if ($item = parent::getItem($pk)) {
-            if (isset($item->params)) {
-                $item->params = json_encode($item->params);
-            }
-
-            // Do any processing on fields here if needed
-            if ($item->id > 0) {
-                $toolsHelper = new ToolsHelper;
-                $sql = 'SELECT name, email, block, requireReset ';
-                $sql .= 'FROM #__users WHERE id=' . $item->id;
-                $user = $toolsHelper->getItem($sql);
-                $item->real_name = $user->name;
-                $item->email = $user->email;
-                $item->requireReset = $user->requireReset;
-                $item->block = $user->block;
-            }
+            
         }
 
         return $item;
